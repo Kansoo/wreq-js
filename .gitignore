@@ -4,7 +4,7 @@ node_modules/
 # Build outputs
 dist/
 rust/target/
-rust/index.node
+rust/node-wreq.node
 *.node
 
 # TypeScript

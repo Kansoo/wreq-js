@@ -14,7 +14,6 @@ Supported platforms:
 - 🍎 macOS Intel (x64)
 - 🍎 macOS Apple Silicon (arm64)
 - 🐧 Linux x64
-- 🐧 Linux ARM64
 - 🪟 Windows x64
 
 ### Publishing Process

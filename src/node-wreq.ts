@@ -18,7 +18,6 @@ function loadNativeBinding() {
     },
     linux: {
       x64: 'linux-x64',
-      arm64: 'linux-arm64',
     },
     win32: {
       x64: 'win32-x64',
@@ -29,23 +28,23 @@ function loadNativeBinding() {
   if (!platformArch) {
     throw new Error(
       `Unsupported platform: ${platform}-${arch}. ` +
-        `Supported platforms: darwin-x64, darwin-arm64, linux-x64, linux-arm64, win32-x64`
+        `Supported platforms: darwin-x64, darwin-arm64, linux-x64, win32-x64`
     );
   }
 
   // Try to load platform-specific binary (napi naming convention)
-  const binaryName = `index.${platformArch}.node`;
+  const binaryName = `node-wreq.${platformArch}.node`;
 
   try {
     return require(`../rust/${binaryName}`);
   } catch (e1) {
-    // Fallback to index.node (for local development)
+    // Fallback to node-wreq.node (for local development)
     try {
-      return require('../rust/index.node');
+      return require('../rust/node-wreq.node');
     } catch (e2) {
       throw new Error(
         `Failed to load native module for ${platform}-${arch}. ` +
-          `Tried: ../rust/${binaryName} and ../rust/index.node. ` +
+          `Tried: ../rust/${binaryName} and ../rust/node-wreq.node. ` +
           `Make sure the package is installed correctly and the native module is built for your platform.`
       );
     }

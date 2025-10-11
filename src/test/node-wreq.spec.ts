@@ -13,7 +13,9 @@ describe('node-wreq', () => {
     assert.ok(Array.isArray(profiles), 'Profiles should be an array');
     assert.ok(profiles.length > 0, 'Should have at least one profile');
     assert.ok(
-      profiles.includes('chrome_137') || profiles.includes('firefox_139') || profiles.includes('safari_18'),
+      profiles.includes('chrome_137') ||
+        profiles.includes('firefox_139') ||
+        profiles.includes('safari_18'),
       'Should include standard browser profiles'
     );
 

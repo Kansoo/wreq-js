@@ -77,7 +77,6 @@ body:
         - macOS (Intel)
         - macOS (Apple Silicon)
         - Linux (x64)
-        - Linux (ARM64)
         - Windows (x64)
         - Other
     validations:

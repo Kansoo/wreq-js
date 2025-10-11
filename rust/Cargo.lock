@@ -171,20 +171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "browser-bypass"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "neon",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "wreq",
- "wreq-util",
-]
-
-[[package]]
 name = "bytes"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -670,6 +656,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "node-wreq"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "neon",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "wreq",
+ "wreq-util",
 ]
 
 [[package]]
