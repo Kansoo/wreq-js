@@ -30,7 +30,7 @@ function loadNativeBinding() {
   const arch = process.arch;
 
   // Map Node.js platform/arch to Rust target triple suffixes
-  // napi-rs creates files like: node-wreq.linux-x64-gnu.node
+  // napi-rs creates files like: wreq-js.linux-x64-gnu.node
   const platformArchMap: Record<string, Record<string, string>> = {
     darwin: {
       x64: 'darwin-x64',
@@ -54,18 +54,18 @@ function loadNativeBinding() {
   }
 
   // Try to load platform-specific binary
-  const binaryName = `node-wreq.${platformArch}.node`;
+  const binaryName = `wreq-js.${platformArch}.node`;
 
   try {
     return require(`../rust/${binaryName}`);
   } catch (e1) {
-    // Fallback to node-wreq.node (for local development)
+    // Fallback to wreq-js.node (for local development)
     try {
-      return require('../rust/node-wreq.node');
+      return require('../rust/wreq-js.node');
     } catch (e2) {
       throw new Error(
         `Failed to load native module for ${platform}-${arch}. ` +
-          `Tried: ../rust/${binaryName} and ../rust/node-wreq.node. ` +
+          `Tried: ../rust/${binaryName} and ../rust/wreq-js.node. ` +
           `Make sure the package is installed correctly and the native module is built for your platform.`
       );
     }
@@ -86,7 +86,7 @@ try {
  *
  * @example
  * ```typescript
- * import { request } from 'node-wreq';
+ * import { request } from 'wreq-js';
  *
  * const response = await request({
  *   url: 'https://example.com/api',
@@ -129,7 +129,7 @@ export async function request(options: RequestOptions): Promise<Response> {
  *
  * @example
  * ```typescript
- * import { getProfiles } from 'node-wreq';
+ * import { getProfiles } from 'wreq-js';
  *
  * const profiles = getProfiles();
  * console.log(profiles); // ['chrome_120', 'chrome_131', 'firefox', ...]
@@ -148,7 +148,7 @@ export function getProfiles(): BrowserProfile[] {
  *
  * @example
  * ```typescript
- * import { get } from 'node-wreq';
+ * import { get } from 'wreq-js';
  *
  * const response = await get('https://example.com/api');
  * ```
@@ -170,7 +170,7 @@ export async function get(
  *
  * @example
  * ```typescript
- * import { post } from 'node-wreq';
+ * import { post } from 'wreq-js';
  *
  * const response = await post(
  *   'https://example.com/api',
@@ -192,7 +192,7 @@ export async function post(
  *
  * @example
  * ```typescript
- * import { websocket } from 'node-wreq';
+ * import { websocket } from 'wreq-js';
  *
  * const ws = await websocket({
  *   url: 'wss://echo.websocket.org',
