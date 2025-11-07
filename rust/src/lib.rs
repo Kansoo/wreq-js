@@ -1,5 +1,6 @@
 mod client;
 mod websocket;
+mod generated_profiles;
 
 use neon::prelude::*;
 use neon::types::buffer::TypedArray;
@@ -11,93 +12,12 @@ use wreq_util::Emulation;
 use futures_util::StreamExt;
 use wreq::ws::message::Message;
 
-// Parse browser string to Emulation enum
+// Parse browser string to Emulation enum using serde
 fn parse_emulation(browser: &str) -> Emulation {
-    match browser {
-        // Chrome
-        "chrome_100" => Emulation::Chrome100,
-        "chrome_101" => Emulation::Chrome101,
-        "chrome_104" => Emulation::Chrome104,
-        "chrome_105" => Emulation::Chrome105,
-        "chrome_106" => Emulation::Chrome106,
-        "chrome_107" => Emulation::Chrome107,
-        "chrome_108" => Emulation::Chrome108,
-        "chrome_109" => Emulation::Chrome109,
-        "chrome_110" => Emulation::Chrome110,
-        "chrome_114" => Emulation::Chrome114,
-        "chrome_116" => Emulation::Chrome116,
-        "chrome_117" => Emulation::Chrome117,
-        "chrome_118" => Emulation::Chrome118,
-        "chrome_119" => Emulation::Chrome119,
-        "chrome_120" => Emulation::Chrome120,
-        "chrome_123" => Emulation::Chrome123,
-        "chrome_124" => Emulation::Chrome124,
-        "chrome_126" => Emulation::Chrome126,
-        "chrome_127" => Emulation::Chrome127,
-        "chrome_128" => Emulation::Chrome128,
-        "chrome_129" => Emulation::Chrome129,
-        "chrome_130" => Emulation::Chrome130,
-        "chrome_131" => Emulation::Chrome131,
-        "chrome_132" => Emulation::Chrome132,
-        "chrome_133" => Emulation::Chrome133,
-        "chrome_134" => Emulation::Chrome134,
-        "chrome_135" => Emulation::Chrome135,
-        "chrome_136" => Emulation::Chrome136,
-        "chrome_137" => Emulation::Chrome137,
-        // Edge
-        "edge_101" => Emulation::Edge101,
-        "edge_122" => Emulation::Edge122,
-        "edge_127" => Emulation::Edge127,
-        "edge_131" => Emulation::Edge131,
-        "edge_134" => Emulation::Edge134,
-        // Safari
-        "safari_ios_17_2" => Emulation::SafariIos17_2,
-        "safari_ios_17_4_1" => Emulation::SafariIos17_4_1,
-        "safari_ios_16_5" => Emulation::SafariIos16_5,
-        "safari_15_3" => Emulation::Safari15_3,
-        "safari_15_5" => Emulation::Safari15_5,
-        "safari_15_6_1" => Emulation::Safari15_6_1,
-        "safari_16" => Emulation::Safari16,
-        "safari_16_5" => Emulation::Safari16_5,
-        "safari_17_0" => Emulation::Safari17_0,
-        "safari_17_2_1" => Emulation::Safari17_2_1,
-        "safari_17_4_1" => Emulation::Safari17_4_1,
-        "safari_17_5" => Emulation::Safari17_5,
-        "safari_18" => Emulation::Safari18,
-        "safari_ipad_18" => Emulation::SafariIPad18,
-        "safari_18_2" => Emulation::Safari18_2,
-        "safari_ios_18_1_1" => Emulation::SafariIos18_1_1,
-        "safari_18_3" => Emulation::Safari18_3,
-        "safari_18_3_1" => Emulation::Safari18_3_1,
-        "safari_18_5" => Emulation::Safari18_5,
-        // Firefox
-        "firefox_109" => Emulation::Firefox109,
-        "firefox_117" => Emulation::Firefox117,
-        "firefox_128" => Emulation::Firefox128,
-        "firefox_133" => Emulation::Firefox133,
-        "firefox_135" => Emulation::Firefox135,
-        "firefox_private_135" => Emulation::FirefoxPrivate135,
-        "firefox_android_135" => Emulation::FirefoxAndroid135,
-        "firefox_136" => Emulation::Firefox136,
-        "firefox_private_136" => Emulation::FirefoxPrivate136,
-        "firefox_139" => Emulation::Firefox139,
-        // Opera
-        "opera_116" => Emulation::Opera116,
-        "opera_117" => Emulation::Opera117,
-        "opera_118" => Emulation::Opera118,
-        "opera_119" => Emulation::Opera119,
-        // OkHttp
-        "okhttp_3_9" => Emulation::OkHttp3_9,
-        "okhttp_3_11" => Emulation::OkHttp3_11,
-        "okhttp_3_13" => Emulation::OkHttp3_13,
-        "okhttp_3_14" => Emulation::OkHttp3_14,
-        "okhttp_4_9" => Emulation::OkHttp4_9,
-        "okhttp_4_10" => Emulation::OkHttp4_10,
-        "okhttp_4_12" => Emulation::OkHttp4_12,
-        "okhttp_5" => Emulation::OkHttp5,
-        // Default to Chrome 137
-        _ => Emulation::Chrome137,
-    }
+    // Use serde to deserialize the string into the enum
+    // If deserialization fails, default to Chrome137
+    serde_json::from_value(serde_json::Value::String(browser.to_string()))
+        .unwrap_or(Emulation::Chrome137)
 }
 
 // Convert JS object to RequestOptions
@@ -240,35 +160,9 @@ fn request(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
 // Get list of available browser profiles
 fn get_profiles(mut cx: FunctionContext) -> JsResult<JsArray> {
-    let profiles = vec![
-        // Chrome
-        "chrome_100", "chrome_101", "chrome_104", "chrome_105", "chrome_106", "chrome_107",
-        "chrome_108", "chrome_109", "chrome_110", "chrome_114", "chrome_116", "chrome_117",
-        "chrome_118", "chrome_119", "chrome_120", "chrome_123", "chrome_124", "chrome_126",
-        "chrome_127", "chrome_128", "chrome_129", "chrome_130", "chrome_131", "chrome_132",
-        "chrome_133", "chrome_134", "chrome_135", "chrome_136", "chrome_137",
-        // Edge
-        "edge_101", "edge_122", "edge_127", "edge_131", "edge_134",
-        // Safari
-        "safari_ios_17_2", "safari_ios_17_4_1", "safari_ios_16_5",
-        "safari_15_3", "safari_15_5", "safari_15_6_1", "safari_16", "safari_16_5",
-        "safari_17_0", "safari_17_2_1", "safari_17_4_1", "safari_17_5", "safari_18",
-        "safari_ipad_18", "safari_18_2", "safari_ios_18_1_1",
-        "safari_18_3", "safari_18_3_1", "safari_18_5",
-        // Firefox
-        "firefox_109", "firefox_117", "firefox_128", "firefox_133", "firefox_135",
-        "firefox_private_135", "firefox_android_135",
-        "firefox_136", "firefox_private_136", "firefox_139",
-        // Opera
-        "opera_116", "opera_117", "opera_118", "opera_119",
-        // OkHttp
-        "okhttp_3_9", "okhttp_3_11", "okhttp_3_13", "okhttp_3_14",
-        "okhttp_4_9", "okhttp_4_10", "okhttp_4_12", "okhttp_5",
-    ];
-
     let js_array = cx.empty_array();
 
-    for (i, profile) in profiles.iter().enumerate() {
+    for (i, profile) in generated_profiles::BROWSER_PROFILES.iter().enumerate() {
         let js_string = cx.string(*profile);
         js_array.set(&mut cx, i as u32, js_string)?;
     }
