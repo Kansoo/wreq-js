@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 20
 - Rust toolchain (see [docs/BUILD.md](docs/BUILD.md))
 - Git
 
