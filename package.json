@@ -1,9 +1,9 @@
 {
-  "name": "node-wreq",
-  "version": "0.2.1",
+  "name": "wreq-js",
+  "version": "0.1.0",
   "description": "Browser fingerprint bypass library using Rust for TLS/HTTP2 impersonation",
-  "main": "dist/node-wreq.js",
-  "types": "dist/node-wreq.d.ts",
+  "main": "dist/wreq-js.js",
+  "types": "dist/wreq-js.d.ts",
   "scripts": {
     "build": "npm run build:rust && npm run build:ts",
     "build:rust": "napi build --platform --release --cargo-cwd rust rust",
@@ -32,19 +32,19 @@
     "ja4", 
     "browser-fingerprint-bypass"
   ],
-  "author": "will-work-for-meal",
+  "author": "Oleksandr Herasymov <herasymov7@icloud.com>",
   "contributors": [
-    "Oleksandr Herasymov"
+    "will-work-for-meal"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sqdshguy/node-wreq.git"
+    "url": "git+https://github.com/sqdshguy/wreq-js.git"
   },
   "bugs": {
-    "url": "https://github.com/sqdshguy/node-wreq/issues"
+    "url": "https://github.com/sqdshguy/wreq-js/issues"
   },
-  "homepage": "https://github.com/sqdshguy/node-wreq#readme",
+  "homepage": "https://github.com/sqdshguy/wreq-js#readme",
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0",
     "@types/node": "^20.0.0",
@@ -69,7 +69,7 @@
     "rust/*.node"
   ],
   "napi": {
-    "name": "node-wreq",
+    "name": "wreq-js",
     "triples": {
       "defaults": true,
       "additional": [
