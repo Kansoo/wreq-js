@@ -13,15 +13,15 @@
   },
   "scripts": {
     "build": "npm run build:rust && npm run build:ts",
-    "build:rust": "napi build --platform --release --cargo-cwd rust rust",
+    "build:rust": "napi build --platform --release --manifest-path rust/Cargo.toml",
     "build:ts": "npm run clean:dist && tsc",
     "clean:dist": "rimraf dist",
     "artifacts": "napi artifacts",
     "clean": "rimraf dist rust/target rust/*.node",
     "test": "npm run build && node --test dist/test/http.spec.js dist/test/websocket.spec.js",
-    "format": "biome format --write .",
-    "format:check": "biome check .",
-    "lint": "biome lint ."
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "ci:biome": "biome ci ."
   },
   "keywords": [
     "browser",
@@ -77,16 +77,13 @@
     "rust/*.node"
   ],
   "napi": {
-    "name": "wreq-js",
-    "triples": {
-      "defaults": true,
-      "additional": [
-        "x86_64-apple-darwin",
-        "aarch64-apple-darwin",
-        "x86_64-unknown-linux-gnu",
-        "aarch64-unknown-linux-gnu",
-        "x86_64-pc-windows-msvc"
-      ]
-    }
+    "binaryName": "wreq-js",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc"
+    ]
   }
 }

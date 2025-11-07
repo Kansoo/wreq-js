@@ -115,4 +115,4 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Check code formatting
-        run: npm run format:check
+        run: npm run ci:biome
