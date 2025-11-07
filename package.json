@@ -19,8 +19,9 @@
     "artifacts": "napi artifacts",
     "clean": "rimraf dist rust/target rust/*.node",
     "test": "npm run build && node --test dist/test/http.spec.js dist/test/websocket.spec.js",
-    "format": "prettier --write \"src/**/*.{ts,js,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\""
+    "format": "biome format --write .",
+    "format:check": "biome check .",
+    "lint": "biome lint ."
   },
   "keywords": [
     "browser",
@@ -35,8 +36,8 @@
     "web-scraper",
     "wreq",
     "ja3",
-    "tls-fingerprint", 
-    "ja4", 
+    "tls-fingerprint",
+    "ja4",
     "browser-fingerprint-bypass"
   ],
   "author": "Oleksandr Herasymov <herasymov7@icloud.com>",
@@ -53,9 +54,9 @@
   },
   "homepage": "https://github.com/sqdshguy/wreq-js#readme",
   "devDependencies": {
+    "@biomejs/biome": "^2.3.4",
     "@napi-rs/cli": "^2.18.0",
     "@types/node": "^20.0.0",
-    "prettier": "^3.2.5",
     "rimraf": "^6.0.1",
     "typescript": "^5.0.0"
   },
