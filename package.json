@@ -18,7 +18,7 @@
     "clean:dist": "rimraf dist",
     "artifacts": "napi artifacts",
     "clean": "rimraf dist rust/target rust/*.node",
-    "test": "npm run build && node --test dist/test/http.spec.js dist/test/websocket.spec.js",
+    "test": "npm run build && node dist/test/run-with-local-server.js",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "ci:biome": "biome ci ."

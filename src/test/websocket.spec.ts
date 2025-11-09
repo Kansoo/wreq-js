@@ -3,6 +3,8 @@ import { before, describe, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { websocket } from "../wreq-js";
 
+const WS_TEST_URL = process.env.WS_TEST_URL ?? "wss://echo.websocket.org";
+
 describe("WebSocket", () => {
   before(() => {
     console.log("🔌 WebSocket Test Suite\n");
@@ -13,7 +15,7 @@ describe("WebSocket", () => {
     let isClosed = false;
 
     const ws = await websocket({
-      url: "wss://echo.websocket.org",
+      url: WS_TEST_URL,
       browser: "chrome_142",
       onMessage: (data) => {
         messages.push(data);
@@ -31,16 +33,13 @@ describe("WebSocket", () => {
     await ws.send("Hello!");
 
     // Wait for echo response
-    await sleep(1000);
+    await sleep(100);
     assert.ok(messages.length > 0, "Should receive at least one message");
 
     // Wait a bit for close callback
     await ws.close();
-    await sleep(10000);
+    await sleep(100);
     assert.ok(isClosed, "Should receive close event");
-
-    // Rate limit protection: wait before next test
-    await sleep(2000);
   });
 
   test("should handle parallel sends on same WebSocket", async () => {
@@ -48,7 +47,7 @@ describe("WebSocket", () => {
     const expectedMessages = ["Message 1", "Message 2", "Message 3", "Message 4", "Message 5"];
 
     const ws = await websocket({
-      url: "wss://echo.websocket.org",
+      url: WS_TEST_URL,
       browser: "chrome_142",
       onMessage: (data) => {
         messages.push(data);
@@ -73,7 +72,7 @@ describe("WebSocket", () => {
     console.log("All messages sent in parallel");
 
     // Wait for echo responses
-    await sleep(2000);
+    await sleep(200);
 
     assert.ok(messages.length >= 5, "Should receive at least 5 messages");
 
@@ -89,9 +88,6 @@ describe("WebSocket", () => {
     console.log("All messages received correctly:", receivedStrings.join(", "));
 
     await ws.close();
-
-    // Rate limit protection: wait before next test
-    await sleep(2000);
   });
 
   test("should handle multiple WebSocket connections simultaneously", async () => {
@@ -101,14 +97,14 @@ describe("WebSocket", () => {
     // Create two WebSocket connections in parallel
     const [ws1, ws2] = await Promise.all([
       websocket({
-        url: "wss://echo.websocket.org",
+        url: WS_TEST_URL,
         browser: "chrome_142",
         onMessage: (data) => ws1Messages.push(data),
         onClose: () => {},
         onError: () => {},
       }),
       websocket({
-        url: "wss://echo.websocket.org",
+        url: WS_TEST_URL,
         browser: "firefox_139",
         onMessage: (data) => ws2Messages.push(data),
         onClose: () => {},
@@ -121,8 +117,8 @@ describe("WebSocket", () => {
     // Send unique messages on both connections in parallel
     await Promise.all([ws1.send("From WS1"), ws2.send("From WS2")]);
 
-    // Wait for responses (long timeout for CI)
-    await sleep(5000);
+    // Wait for responses
+    await sleep(200);
 
     assert.ok(ws1Messages.length > 0, "WS1 should receive messages");
     assert.ok(ws2Messages.length > 0, "WS2 should receive messages");
