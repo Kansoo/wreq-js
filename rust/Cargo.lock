@@ -1699,7 +1699,6 @@ dependencies = [
  "pin-project-lite",
  "schnellru",
  "serde",
- "serde_json",
  "serde_urlencoded",
  "smallvec",
  "socket2",

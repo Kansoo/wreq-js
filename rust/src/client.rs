@@ -115,15 +115,8 @@ pub async fn make_request(options: RequestOptions) -> Result<Response> {
 
     // Extract cookies
     let mut cookies = HashMap::new();
-    if let Some(cookie_header) = response.headers().get("set-cookie") {
-        if let Ok(cookie_str) = cookie_header.to_str() {
-            // Simple cookie parsing (name=value)
-            for cookie_part in cookie_str.split(';') {
-                if let Some((key, value)) = cookie_part.trim().split_once('=') {
-                    cookies.insert(key.to_string(), value.to_string());
-                }
-            }
-        }
+    for cookie in response.cookies() {
+        cookies.insert(cookie.name().to_string(), cookie.value().to_string());
     }
 
     // Get body
