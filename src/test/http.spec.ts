@@ -79,6 +79,54 @@ describe("HTTP", () => {
     );
   });
 
+  test("should disable default headers when requested", async () => {
+    const customAccept = "*/*";
+    const response = await wreqFetch(httpUrl("/headers"), {
+      browser: "chrome_142",
+      headers: {
+        "Accept": customAccept,
+      },
+      disableDefaultHeaders: true,
+      timeout: 10000,
+    });
+
+    assert.ok(response.status === 200, "Should return status 200");
+
+    const body = await response.json<{ headers: Record<string, string> }>();
+
+    assert.strictEqual(
+      body.headers.Accept,
+      customAccept,
+      "Should use only custom Accept header without emulation headers appended",
+    );
+
+    console.log("Custom Accept sent:", body.headers.Accept);
+  });
+
+  test("should append emulation headers by default", async () => {
+    const customAccept = "*/*";
+    const response = await wreqFetch(httpUrl("/headers"), {
+      browser: "chrome_142",
+      headers: {
+        "Accept": customAccept,
+      },
+      timeout: 10000,
+    });
+
+    assert.ok(response.status === 200, "Should return status 200");
+
+    const body = await response.json<{ headers: Record<string, string> }>();
+    const accept = body.headers.Accept;
+
+    assert.ok(accept, "Should have Accept header");
+    assert.ok(
+      accept.includes(customAccept),
+      "Should include custom Accept header",
+    );
+
+    console.log("Accept with emulation (may be overwritten):", accept);
+  });
+
   test("should provide functional clone and text helpers", async () => {
     const response = await wreqFetch(httpUrl("/json"), {
       browser: "chrome_142",
