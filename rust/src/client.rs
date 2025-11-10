@@ -30,6 +30,7 @@ pub struct RequestOptions {
     pub timeout: u64,
     pub session_id: String,
     pub ephemeral: bool,
+    pub disable_default_headers: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -159,6 +160,7 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
         method,
         body,
         timeout,
+        disable_default_headers,
         ..
     } = options;
 
@@ -184,6 +186,11 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
     // Apply custom headers
     for (key, value) in headers {
         request = request.header(&key, &value);
+    }
+
+    // Disable default headers if requested to prevent emulation headers from being appended
+    if disable_default_headers {
+        request = request.default_headers(false);
     }
 
     // Apply body if present
