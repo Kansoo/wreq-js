@@ -1,46 +1,51 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":disableDependencyDashboard"],
-  "schedule": ["after 10pm every weekday", "before 5am every weekday"],
+  "extends": [
+    "config:recommended",
+    ":disableDependencyDashboard",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "schedule": [
+    "after 10pm every weekday",
+    "before 5am every weekday"
+  ],
   "prHourlyLimit": 2,
   "prConcurrentLimit": 10,
   "rangeStrategy": "replace",
-  "pinDigests": false,
+
+  "labels": ["dependencies"],
+
   "packageRules": [
     {
-      "description": "Completely disable version pinning PRs",
-      "matchUpdateTypes": ["pin"],
+      "description": "Do not create pin-only PRs (keep library-style semver ranges)",
+      "matchUpdateTypes": ["pin", "pinDigest"],
       "enabled": false
     },
     {
-      "description": "Completely disable digest pinning PRs",
-      "matchUpdateTypes": ["pinDigest"],
-      "enabled": false
-    },
-    {
-      "description": "Disable updates to already-pinned digests",
-      "matchUpdateTypes": ["digest"],
-      "enabled": false
-    },
-    {
+      "description": "Never automerge major updates",
       "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true,
-      "automerge": false,
-      "pinDigests": false
+      "automerge": false
     },
     {
-      "matchUpdateTypes": ["minor", "patch"],
+      "description": "Automerge safe devDependency updates after a short soak",
       "matchDepTypes": ["devDependencies"],
-      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"],
       "minimumReleaseAge": "3 days",
-      "pinDigests": false
+      "automerge": true
     },
     {
-      "matchUpdateTypes": ["patch"],
+      "description": "Automerge runtime patch updates after a short soak",
       "matchDepTypes": ["dependencies"],
-      "automerge": true,
-      "minimumReleaseAge": "14 days",
-      "pinDigests": false
+      "matchUpdateTypes": ["patch"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true
+    },
+    {
+      "description": "Runtime minor updates - slower cadence, manual merge",
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor"],
+      "minimumReleaseAge": "7 days",
+      "automerge": false
     }
   ]
 }
