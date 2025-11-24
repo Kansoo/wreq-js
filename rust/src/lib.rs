@@ -3,20 +3,21 @@ mod generated_profiles;
 mod websocket;
 
 use client::{
-    clear_managed_session, create_managed_session, drop_managed_session, generate_session_id, make_request,
-    RequestOptions, Response, HTTP_RUNTIME,
+    HTTP_RUNTIME, RequestOptions, Response, clear_managed_session, create_managed_session,
+    drop_managed_session, generate_session_id, make_request,
 };
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use neon::prelude::*;
 use neon::types::{
-    buffer::TypedArray, JsArray, JsBoolean, JsNull, JsObject, JsString, JsUndefined, JsValue,
+    JsArray, JsBoolean, JsBuffer, JsNull, JsObject, JsString, JsUndefined, JsValue,
+    buffer::TypedArray,
 };
 use std::sync::Arc;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Semaphore, mpsc};
 use websocket::{
-    connect_websocket, get_connection, remove_connection, store_connection, WebSocketOptions,
-    WS_RUNTIME,
+    WS_RUNTIME, WebSocketOptions, connect_websocket, get_connection, remove_connection,
+    store_connection,
 };
 use wreq::ws::message::Message;
 use wreq_util::Emulation;
@@ -40,7 +41,10 @@ fn coerce_header_value(cx: &mut FunctionContext, value: Handle<JsValue>) -> Neon
     Ok(converted.value(cx))
 }
 
-fn parse_header_tuple(cx: &mut FunctionContext, tuple: Handle<JsArray>) -> NeonResult<(String, String)> {
+fn parse_header_tuple(
+    cx: &mut FunctionContext,
+    tuple: Handle<JsArray>,
+) -> NeonResult<(String, String)> {
     if tuple.len(cx) < 2 {
         return cx.throw_type_error("Header tuple must contain a name and a value");
     }
@@ -53,7 +57,10 @@ fn parse_header_tuple(cx: &mut FunctionContext, tuple: Handle<JsArray>) -> NeonR
     Ok((name, value))
 }
 
-fn parse_headers_from_array(cx: &mut FunctionContext, array: Handle<JsArray>) -> NeonResult<IndexMap<String, String>> {
+fn parse_headers_from_array(
+    cx: &mut FunctionContext,
+    array: Handle<JsArray>,
+) -> NeonResult<IndexMap<String, String>> {
     let mut headers = IndexMap::new();
     let len = array.len(cx);
 
@@ -67,7 +74,10 @@ fn parse_headers_from_array(cx: &mut FunctionContext, array: Handle<JsArray>) ->
     Ok(headers)
 }
 
-fn parse_headers_from_object(cx: &mut FunctionContext, obj: Handle<JsObject>) -> NeonResult<IndexMap<String, String>> {
+fn parse_headers_from_object(
+    cx: &mut FunctionContext,
+    obj: Handle<JsObject>,
+) -> NeonResult<IndexMap<String, String>> {
     let mut headers = IndexMap::new();
     let keys = obj.get_own_property_names(cx)?;
     let keys_vec = keys.to_vec(cx)?;
@@ -84,7 +94,10 @@ fn parse_headers_from_object(cx: &mut FunctionContext, obj: Handle<JsObject>) ->
     Ok(headers)
 }
 
-fn parse_headers_from_value(cx: &mut FunctionContext, value: Handle<JsValue>) -> NeonResult<IndexMap<String, String>> {
+fn parse_headers_from_value(
+    cx: &mut FunctionContext,
+    value: Handle<JsValue>,
+) -> NeonResult<IndexMap<String, String>> {
     if value.is_a::<JsUndefined, _>(cx) || value.is_a::<JsNull, _>(cx) {
         return Ok(IndexMap::new());
     }
@@ -135,10 +148,19 @@ fn js_object_to_request_options(
     };
 
     // Get body (optional)
-    let body = obj
-        .get_opt(cx, "body")?
-        .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(cx).ok())
-        .map(|v| v.value(cx));
+    let body = if let Some(body_value) = obj.get_opt::<JsValue, _, _>(cx, "body")? {
+        if body_value.is_a::<JsUndefined, _>(cx) || body_value.is_a::<JsNull, _>(cx) {
+            None
+        } else if let Ok(buffer) = body_value.downcast::<JsBuffer, _>(cx) {
+            Some(buffer.as_slice(cx).to_vec())
+        } else if let Ok(js_str) = body_value.downcast::<JsString, _>(cx) {
+            Some(js_str.value(cx).into_bytes())
+        } else {
+            return cx.throw_type_error("body must be a string or Buffer");
+        }
+    } else {
+        None
+    };
 
     // Get proxy (optional)
     let proxy = obj
@@ -218,8 +240,8 @@ fn response_to_js_object<'a, C: Context<'a>>(
     }
     obj.set(cx, "cookies", cookies_obj)?;
 
-    // Body
-    let body = cx.string(&response.body);
+    // Body (as Buffer)
+    let body = JsBuffer::from_slice(cx, &response.body)?;
     obj.set(cx, "body", body)?;
 
     Ok(obj)

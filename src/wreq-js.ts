@@ -322,7 +322,7 @@ function cloneNativeResponse(payload: NativeResponse): NativeResponse {
   return {
     status: payload.status,
     headers: { ...payload.headers },
-    body: payload.body,
+    body: Buffer.from(payload.body),
     cookies: { ...payload.cookies },
     url: payload.url,
   };
@@ -337,7 +337,7 @@ export class Response {
   readonly redirected: boolean;
   readonly type: ResponseType = "basic";
   readonly cookies: Record<string, string>;
-  readonly body: string;
+  readonly body: Buffer;
   bodyUsed = false;
 
   private readonly payload: NativeResponse;
@@ -353,7 +353,7 @@ export class Response {
     this.url = payload.url;
     this.redirected = this.url !== requestUrl;
     this.cookies = { ...payload.cookies };
-    this.body = payload.body;
+    this.body = Buffer.from(payload.body);
   }
 
   async json<T = unknown>(): Promise<T> {
@@ -361,10 +361,16 @@ export class Response {
     return JSON.parse(text) as T;
   }
 
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    const bytes = this.consumeBody();
+    const copy = Buffer.from(bytes);
+    return copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength);
+  }
+
   async text(): Promise<string> {
-    this.assertBodyAvailable();
-    this.bodyUsed = true;
-    return this.body;
+    const bytes = this.consumeBody();
+    const decoder = new TextDecoder("utf-8");
+    return decoder.decode(bytes);
   }
 
   clone(): Response {
@@ -379,6 +385,12 @@ export class Response {
     if (this.bodyUsed) {
       throw new TypeError("Response body is already used");
     }
+  }
+
+  private consumeBody(): Buffer {
+    this.assertBodyAvailable();
+    this.bodyUsed = true;
+    return this.body;
   }
 }
 
@@ -608,29 +620,29 @@ function validateRedirectMode(mode?: WreqRequestInit["redirect"]): void {
   throw new RequestError(`Redirect mode '${mode}' is not supported`);
 }
 
-function serializeBody(body?: BodyInit | null): string | undefined {
+function serializeBody(body?: BodyInit | null): Buffer | undefined {
   if (body === null || body === undefined) {
     return undefined;
   }
 
   if (typeof body === "string") {
-    return body;
+    return Buffer.from(body, "utf8");
   }
 
   if (Buffer.isBuffer(body)) {
-    return body.toString();
+    return body;
   }
 
   if (body instanceof URLSearchParams) {
-    return body.toString();
+    return Buffer.from(body.toString(), "utf8");
   }
 
   if (body instanceof ArrayBuffer) {
-    return Buffer.from(body).toString();
+    return Buffer.from(body);
   }
 
   if (ArrayBuffer.isView(body)) {
-    return Buffer.from(body.buffer, body.byteOffset, body.byteLength).toString();
+    return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
   }
 
   throw new TypeError("Unsupported body type; expected string, Buffer, ArrayBuffer, or URLSearchParams");
@@ -650,8 +662,8 @@ function assertSupportedMethod(method: string): asserts method is SupportedMetho
   }
 }
 
-function ensureBodyAllowed(method: string, body?: string): void {
-  if (!body) {
+function ensureBodyAllowed(method: string, body?: Buffer): void {
+  if (body === undefined) {
     return;
   }
 

@@ -31,7 +31,7 @@ describe("HTTP requests", () => {
 
       assert.strictEqual(response.status, 200, `${browser} should return status 200`);
 
-      const data = JSON.parse(response.body);
+      const data = JSON.parse(response.body.toString("utf8"));
 
       assert.ok(data["user-agent"], `${browser} should provide a user-agent header`);
     }
@@ -51,5 +51,20 @@ describe("HTTP requests", () => {
     assert.ok(cloneText.length > 0, "clone text should return payload");
     assert.ok(response.bodyUsed, "original body should be consumed");
     assert.ok(clone.bodyUsed, "clone body should be consumed");
+  });
+
+  test("preserves binary response bodies", async () => {
+    const response = await wreqFetch(httpUrl("/binary"), {
+      browser: "chrome_142",
+      timeout: 10000,
+    });
+
+    const buf = Buffer.from(await response.arrayBuffer());
+
+    assert.strictEqual(buf.length, 256, "binary response should match expected length");
+    for (let i = 0; i < buf.length; i += 1) {
+      assert.strictEqual(buf[i], i % 256, "binary response should preserve byte order");
+    }
+    assert.ok(response.bodyUsed, "arrayBuffer() should mark the body as used");
   });
 });

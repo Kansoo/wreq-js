@@ -237,7 +237,7 @@ export interface RequestOptions {
   /**
    * Request body data (for POST, PUT, PATCH requests).
    */
-  body?: string;
+  body?: Buffer;
 
   /**
    * Proxy URL to route the request through (e.g., 'http://proxy.example.com:8080').
@@ -294,9 +294,9 @@ export interface NativeResponse {
   headers: Record<string, string>;
 
   /**
-   * Response body as a UTF-8 encoded string.
+   * Raw response body as a Node.js Buffer.
    */
-  body: string;
+  body: Buffer;
 
   /**
    * Cookies set by the server as key-value pairs.

@@ -25,7 +25,7 @@ pub struct RequestOptions {
     pub emulation: Emulation,
     pub headers: IndexMap<String, String>,
     pub method: String,
-    pub body: Option<String>,
+    pub body: Option<Vec<u8>>,
     pub proxy: Option<String>,
     pub timeout: u64,
     pub session_id: String,
@@ -37,7 +37,7 @@ pub struct RequestOptions {
 pub struct Response {
     pub status: u16,
     pub headers: IndexMap<String, String>,
-    pub body: String,
+    pub body: Vec<u8>,
     pub cookies: IndexMap<String, String>,
     pub url: String,
 }
@@ -225,11 +225,12 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
         cookies.insert(cookie.name().to_string(), cookie.value().to_string());
     }
 
-    // Get body
+    // Get body as raw bytes to preserve binary data
     let body = response
-        .text()
+        .bytes()
         .await
-        .context("Failed to read response body")?;
+        .context("Failed to read response body")?
+        .to_vec();
 
     Ok(Response {
         status,
