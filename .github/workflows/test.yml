@@ -73,7 +73,7 @@ jobs:
           set -eux
           rustup target add x86_64-unknown-linux-musl
 
-          TOOLCHAIN_URL="https://musl.cc/x86_64-linux-musl-cross.tgz"
+          TOOLCHAIN_URL="https://github.com/troglobit/misc/releases/download/11-20211120/x86_64-linux-musl-cross.tgz"
           mkdir -p "$HOME/musl-cross"
           curl -L "$TOOLCHAIN_URL" -o /tmp/x86_64-linux-musl-cross.tgz
           tar -xzf /tmp/x86_64-linux-musl-cross.tgz -C "$HOME/musl-cross"
