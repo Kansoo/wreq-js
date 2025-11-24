@@ -1,20 +1,20 @@
 use anyhow::{Context, Result};
+use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use indexmap::IndexMap;
 use neon::prelude::*;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use wreq::ws::message::Message;
 use wreq::ws::WebSocket;
 use wreq_util::Emulation;
 
 // Global storage for WebSocket connections
-static WS_CONNECTIONS: Lazy<StdMutex<HashMap<u64, Arc<WsConnection>>>> =
-    Lazy::new(|| StdMutex::new(HashMap::new()));
+static WS_CONNECTIONS: Lazy<DashMap<u64, Arc<WsConnection>>> = Lazy::new(DashMap::new);
 
-static NEXT_WS_ID: Lazy<StdMutex<u64>> = Lazy::new(|| StdMutex::new(1));
+static NEXT_WS_ID: AtomicU64 = AtomicU64::new(1);
 
 // Global Tokio runtime for WebSocket operations
 pub static WS_RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
@@ -80,26 +80,19 @@ impl Finalize for WsConnection {}
 
 /// Store a WebSocket connection and return its ID
 pub fn store_connection(connection: WsConnection) -> u64 {
-    let mut id_lock = NEXT_WS_ID.lock().unwrap();
-    let id = *id_lock;
-    *id_lock += 1;
-    drop(id_lock);
-
-    let mut connections = WS_CONNECTIONS.lock().unwrap();
-    connections.insert(id, Arc::new(connection));
+    let id = NEXT_WS_ID.fetch_add(1, Ordering::Relaxed);
+    WS_CONNECTIONS.insert(id, Arc::new(connection));
     id
 }
 
 /// Get a WebSocket connection by ID
 pub fn get_connection(id: u64) -> Option<Arc<WsConnection>> {
-    let connections = WS_CONNECTIONS.lock().unwrap();
-    connections.get(&id).cloned()
+    WS_CONNECTIONS.get(&id).map(|entry| entry.value().clone())
 }
 
 /// Remove a WebSocket connection
 pub fn remove_connection(id: u64) {
-    let mut connections = WS_CONNECTIONS.lock().unwrap();
-    connections.remove(&id);
+    WS_CONNECTIONS.remove(&id);
 }
 
 /// Create WebSocket connection
