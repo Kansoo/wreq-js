@@ -61,7 +61,7 @@ jobs:
 
       - name: Install dependencies for Alpine
         if: matrix.container == 'node:24-alpine'
-        run: apk add --no-cache bash curl git build-base musl-dev cmake perl go clang-dev clang-static llvm-dev
+        run: apk add --no-cache bash curl git build-base musl-dev cmake perl go clang-dev clang-static llvm-dev gcompat libffi-dev
 
       - name: Setup Node.js
         if: matrix.container == ''
@@ -72,6 +72,12 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Configure bindgen for Alpine
+        if: matrix.container == 'node:24-alpine'
+        run: |
+          echo "LIBCLANG_PATH=/usr/lib/llvm20/lib" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=--sysroot=/usr" >> $GITHUB_ENV
 
       - name: Cache Rust dependencies
         uses: actions/cache@v4
