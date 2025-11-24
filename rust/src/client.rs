@@ -52,7 +52,7 @@ struct SessionConfig {
 impl SessionConfig {
     fn from_request(options: &RequestOptions) -> Self {
         Self {
-            emulation: options.emulation.clone(),
+            emulation: options.emulation,
             label: emulation_label(&options.emulation),
             proxy: options.proxy.clone(),
         }
@@ -243,7 +243,7 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
 
 fn build_client(config: &SessionConfig) -> Result<HttpClient> {
     let mut client_builder = HttpClient::builder()
-        .emulation(config.emulation.clone())
+        .emulation(config.emulation)
         .cookie_store(true);
 
     if let Some(proxy_url) = config.proxy.as_deref() {
@@ -263,7 +263,11 @@ fn emulation_label(emulation: &Emulation) -> String {
     }
 }
 
-pub fn create_managed_session(session_id: String, emulation: Emulation, proxy: Option<String>) -> Result<String> {
+pub fn create_managed_session(
+    session_id: String,
+    emulation: Emulation,
+    proxy: Option<String>,
+) -> Result<String> {
     let config = SessionConfig::new(emulation, proxy);
     SESSION_MANAGER.create_session(session_id, config)
 }

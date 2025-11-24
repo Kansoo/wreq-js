@@ -516,16 +516,14 @@ fn websocket_connect(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                 }
 
-                if !close_emitted {
-                    if let Some(on_close_ref) = on_close_clone.as_ref() {
-                        let on_close_ref = on_close_ref.clone();
-                        channel_clone.send(move |mut cx| {
-                            let cb = on_close_ref.to_inner(&mut cx);
-                            let this = cx.undefined();
-                            cb.call(&mut cx, this, vec![])?;
-                            Ok(())
-                        });
-                    }
+                if !close_emitted && let Some(on_close_ref) = on_close_clone.as_ref() {
+                    let on_close_ref = on_close_ref.clone();
+                    channel_clone.send(move |mut cx| {
+                        let cb = on_close_ref.to_inner(&mut cx);
+                        let this = cx.undefined();
+                        cb.call(&mut cx, this, vec![])?;
+                        Ok(())
+                    });
                 }
 
                 remove_connection(id);

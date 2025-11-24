@@ -4,11 +4,11 @@ use futures_util::{SinkExt, StreamExt};
 use indexmap::IndexMap;
 use neon::prelude::*;
 use once_cell::sync::Lazy;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Mutex;
-use wreq::ws::message::Message;
 use wreq::ws::WebSocket;
+use wreq::ws::message::Message;
 use wreq_util::Emulation;
 
 // Global storage for WebSocket connections

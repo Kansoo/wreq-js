@@ -18,11 +18,17 @@ fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
     // Write TypeScript types
-    let ts_dest = Path::new(&manifest_dir).parent().unwrap().join("src").join("generated-types.ts");
+    let ts_dest = Path::new(&manifest_dir)
+        .parent()
+        .unwrap()
+        .join("src")
+        .join("generated-types.ts");
     fs::write(&ts_dest, ts_type).unwrap();
 
     // Write Rust profiles array
-    let rust_dest = Path::new(&manifest_dir).join("src").join("generated_profiles.rs");
+    let rust_dest = Path::new(&manifest_dir)
+        .join("src")
+        .join("generated_profiles.rs");
     fs::write(&rust_dest, rust_profiles).unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");
@@ -30,7 +36,7 @@ fn main() {
 
 fn generate_typescript_type(profiles: &[String]) -> String {
     let mut ts_content = String::from(
-        "/**\n * Auto-generated from Rust build script\n * DO NOT EDIT MANUALLY\n */\n\n"
+        "/**\n * Auto-generated from Rust build script\n * DO NOT EDIT MANUALLY\n */\n\n",
     );
 
     ts_content.push_str("/**\n * Browser profile names supported\n */\n");
@@ -49,9 +55,8 @@ fn generate_typescript_type(profiles: &[String]) -> String {
 }
 
 fn generate_rust_profiles(profiles: &[String]) -> String {
-    let mut rust_content = String::from(
-        "// Auto-generated from build script\n// DO NOT EDIT MANUALLY\n\n"
-    );
+    let mut rust_content =
+        String::from("// Auto-generated from build script\n// DO NOT EDIT MANUALLY\n\n");
 
     rust_content.push_str("pub const BROWSER_PROFILES: &[&str] = &[\n");
 
@@ -67,34 +72,37 @@ fn generate_rust_profiles(profiles: &[String]) -> String {
 fn extract_profiles_from_source() -> Vec<String> {
     // Find wreq-util in cargo metadata
     let metadata = std::process::Command::new("cargo")
-        .args(&["metadata", "--format-version", "1"])
+        .args(["metadata", "--format-version", "1"])
         .output()
         .expect("Failed to run cargo metadata");
 
-    let metadata_str = String::from_utf8(metadata.stdout)
-        .expect("Failed to parse cargo metadata");
+    let metadata_str = String::from_utf8(metadata.stdout).expect("Failed to parse cargo metadata");
 
     // Parse JSON to find wreq-util package
-    let metadata_json: serde_json::Value = serde_json::from_str(&metadata_str)
-        .expect("Failed to parse metadata JSON");
+    let metadata_json: serde_json::Value =
+        serde_json::from_str(&metadata_str).expect("Failed to parse metadata JSON");
 
-    let packages = metadata_json["packages"].as_array()
+    let packages = metadata_json["packages"]
+        .as_array()
         .expect("No packages in metadata");
 
-    let wreq_util_pkg = packages.iter()
+    let wreq_util_pkg = packages
+        .iter()
         .find(|p| p["name"].as_str() == Some("wreq-util"))
         .expect("wreq-util package not found");
 
-    let manifest_path = wreq_util_pkg["manifest_path"].as_str()
+    let manifest_path = wreq_util_pkg["manifest_path"]
+        .as_str()
         .expect("No manifest_path for wreq-util");
 
-    let wreq_util_dir = Path::new(manifest_path).parent()
+    let wreq_util_dir = Path::new(manifest_path)
+        .parent()
         .expect("Failed to get wreq-util directory");
 
     // Read the emulation mod.rs file
     let emulation_file = wreq_util_dir.join("src").join("emulation").join("mod.rs");
-    let content = fs::read_to_string(&emulation_file)
-        .expect("Failed to read wreq-util emulation/mod.rs");
+    let content =
+        fs::read_to_string(&emulation_file).expect("Failed to read wreq-util emulation/mod.rs");
 
     // Extract serde rename values from the file
     // Look for patterns like: => ("profile_name", ...)
@@ -102,11 +110,11 @@ fn extract_profiles_from_source() -> Vec<String> {
 
     for line in content.lines() {
         // Match lines like: Chrome100 => ("chrome_100", v100::emulation),
-        if let Some(start) = line.find("=> (\"") {
-            if let Some(end) = line[start + 5..].find('"') {
-                let profile = &line[start + 5..start + 5 + end];
-                profiles.push(profile.to_string());
-            }
+        if let Some(start) = line.find("=> (\"")
+            && let Some(end) = line[start + 5..].find('"')
+        {
+            let profile = &line[start + 5..start + 5 + end];
+            profiles.push(profile.to_string());
         }
     }
 
