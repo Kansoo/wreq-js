@@ -59,7 +59,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
+      - name: Install bash for Alpine
+        if: matrix.container == 'node:24-alpine'
+        run: apk add --no-cache bash
+
       - name: Setup Node.js
+        if: matrix.container == ''
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
