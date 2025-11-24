@@ -1,14 +1,22 @@
 import { spawn } from "node:child_process";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import type { LocalTestServer } from "./helpers/local-test-server";
 import { startLocalTestServer } from "./helpers/local-test-server";
 
 const testDir = __dirname;
+const httpTestDir = resolve(testDir, "http");
+const httpTestFiles = existsSync(httpTestDir)
+  ? readdirSync(httpTestDir)
+      .filter((filename) => filename.endsWith(".spec.js"))
+      .map((filename) => resolve(httpTestDir, filename))
+      .sort()
+  : [];
 
 async function main() {
   const extraArgs = process.argv.slice(2);
-  const defaultTestFiles = [resolve(testDir, "http.spec.js"), resolve(testDir, "websocket.spec.js")];
+  const defaultTestFiles = [...httpTestFiles, resolve(testDir, "websocket.spec.js")];
 
   const env = { ...process.env };
 
