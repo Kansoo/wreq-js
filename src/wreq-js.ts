@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { STATUS_CODES } from "node:http";
 import type {
   BodyInit,
@@ -117,12 +117,7 @@ type SessionResolution = {
 };
 
 function generateSessionId(): string {
-  const cryptoGlobal = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  if (cryptoGlobal?.randomUUID) {
-    return cryptoGlobal.randomUUID();
-  }
-
-  return randomBytes(16).toString("hex");
+  return randomUUID();
 }
 
 function normalizeSessionOptions(options?: CreateSessionOptions): { sessionId: string; defaults: SessionDefaults } {
