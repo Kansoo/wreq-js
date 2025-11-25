@@ -37,9 +37,10 @@ describe("HTTP requests", () => {
 
       assert.strictEqual(response.status, 200, `${browser} should return status 200`);
 
-      const data = JSON.parse(response.body.toString("utf8"));
+      const data = await response.json<{ "user-agent"?: string }>();
 
       assert.ok(data["user-agent"], `${browser} should provide a user-agent header`);
+      assert.ok(response.bodyUsed, "json() should consume the body stream");
     }
   });
 
@@ -72,6 +73,36 @@ describe("HTTP requests", () => {
       assert.strictEqual(buf[i], i % 256, "binary response should preserve byte order");
     }
     assert.ok(response.bodyUsed, "arrayBuffer() should mark the body as used");
+  });
+
+  test("streams response bodies via ReadableStream", { skip: !isLocalHttpBase }, async () => {
+    const response = await wreqFetch(httpUrl("/stream/chunks?n=4&size=64"), {
+      browser: "chrome_142",
+      timeout: 10_000,
+    });
+
+    assert.ok(response.body && typeof response.body.getReader === "function", "body should be a ReadableStream");
+    assert.strictEqual(response.bodyUsed, false, "bodyUsed should remain false before consumption");
+
+    const reader = response.body!.getReader();
+    let chunkCount = 0;
+    let totalBytes = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      chunkCount += 1;
+      totalBytes += value?.byteLength ?? 0;
+      assert.ok(value, "chunk should have data");
+      assert.strictEqual(value![0], chunkCount - 1, "chunk data should preserve order");
+    }
+
+    assert.strictEqual(chunkCount, 4, "should receive all chunks");
+    assert.strictEqual(totalBytes, 4 * 64, "should receive expected byte count");
+    assert.ok(response.bodyUsed, "stream consumption should mark the body as used");
   });
 
   test("follows redirects by default", { skip: !isLocalHttpBase }, async () => {

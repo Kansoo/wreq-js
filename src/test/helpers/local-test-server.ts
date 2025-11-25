@@ -166,6 +166,23 @@ export async function startLocalTestServer(): Promise<LocalTestServer> {
       return;
     }
 
+    if (path === "/stream/chunks") {
+      const chunkCount = Math.max(1, Math.min(Number(url.searchParams.get("n") ?? "3"), 16));
+      const chunkSize = Math.max(1, Math.min(Number(url.searchParams.get("size") ?? "1024"), 65536));
+
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/octet-stream");
+
+      for (let i = 0; i < chunkCount; i += 1) {
+        const chunk = Buffer.alloc(chunkSize, i);
+        res.write(chunk);
+        await delay(5);
+      }
+
+      res.end();
+      return;
+    }
+
     if (path === "/cookies") {
       return json(res, { cookies: parseCookies(req.headers.cookie) });
     }
