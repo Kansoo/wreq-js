@@ -92,3 +92,13 @@ export type BrowserProfile =
   | 'okhttp_4.10'
   | 'okhttp_4.12'
   | 'okhttp_5';
+
+/**
+ * Operating systems supported for emulation
+ */
+export type EmulationOS =
+  | 'windows'
+  | 'macos'
+  | 'linux'
+  | 'android'
+  | 'ios';

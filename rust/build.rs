@@ -3,16 +3,25 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
+    let emulation_file = locate_wreq_util_emulation_file();
+    let emulation_source =
+        fs::read_to_string(&emulation_file).expect("Failed to read wreq-util emulation/mod.rs");
+
     // Dynamically extract all browser profiles from wreq-util by reading the source
-    let profiles = extract_profiles_from_source();
+    let profiles = extract_profiles_from_source(&emulation_source);
+    let operating_systems = extract_operating_systems_from_source(&emulation_source);
 
     println!("cargo:warning=Found {} browser profiles", profiles.len());
+    println!(
+        "cargo:warning=Found {} operating systems",
+        operating_systems.len()
+    );
 
     // Generate TypeScript type definition
-    let ts_type = generate_typescript_type(&profiles);
+    let ts_type = generate_typescript_types(&profiles, &operating_systems);
 
     // Generate Rust profiles array
-    let rust_profiles = generate_rust_profiles(&profiles);
+    let rust_profiles = generate_rust_profiles(&profiles, &operating_systems);
 
     // Write to src directory (going up one level from rust/)
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -34,7 +43,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 }
 
-fn generate_typescript_type(profiles: &[String]) -> String {
+fn generate_typescript_types(profiles: &[String], operating_systems: &[String]) -> String {
     let mut ts_content = String::from(
         "/**\n * Auto-generated from Rust build script\n * DO NOT EDIT MANUALLY\n */\n\n",
     );
@@ -51,10 +60,21 @@ fn generate_typescript_type(profiles: &[String]) -> String {
         }
     }
 
+    ts_content.push_str("\n/**\n * Operating systems supported for emulation\n */\n");
+    ts_content.push_str("export type EmulationOS =\n");
+
+    for (i, os) in operating_systems.iter().enumerate() {
+        if i == operating_systems.len() - 1 {
+            ts_content.push_str(&format!("  | '{}';\n", os));
+        } else {
+            ts_content.push_str(&format!("  | '{}'\n", os));
+        }
+    }
+
     ts_content
 }
 
-fn generate_rust_profiles(profiles: &[String]) -> String {
+fn generate_rust_profiles(profiles: &[String], operating_systems: &[String]) -> String {
     let mut rust_content =
         String::from("// Auto-generated from build script\n// DO NOT EDIT MANUALLY\n\n");
 
@@ -66,11 +86,18 @@ fn generate_rust_profiles(profiles: &[String]) -> String {
 
     rust_content.push_str("];\n");
 
+    rust_content.push_str("\npub const OPERATING_SYSTEMS: &[&str] = &[\n");
+
+    for os in operating_systems {
+        rust_content.push_str(&format!("    \"{}\",\n", os));
+    }
+
+    rust_content.push_str("];\n");
+
     rust_content
 }
 
-fn extract_profiles_from_source() -> Vec<String> {
-    // Find wreq-util in cargo metadata
+fn locate_wreq_util_emulation_file() -> std::path::PathBuf {
     let metadata = std::process::Command::new("cargo")
         .args(["metadata", "--format-version", "1"])
         .output()
@@ -95,15 +122,15 @@ fn extract_profiles_from_source() -> Vec<String> {
         .as_str()
         .expect("No manifest_path for wreq-util");
 
-    let wreq_util_dir = Path::new(manifest_path)
+    Path::new(manifest_path)
         .parent()
-        .expect("Failed to get wreq-util directory");
+        .expect("Failed to get wreq-util directory")
+        .join("src")
+        .join("emulation")
+        .join("mod.rs")
+}
 
-    // Read the emulation mod.rs file
-    let emulation_file = wreq_util_dir.join("src").join("emulation").join("mod.rs");
-    let content =
-        fs::read_to_string(&emulation_file).expect("Failed to read wreq-util emulation/mod.rs");
-
+fn extract_profiles_from_source(content: &str) -> Vec<String> {
     // Extract serde rename values from the file
     // Look for patterns like: => ("profile_name", ...)
     let mut profiles = Vec::new();
@@ -123,4 +150,45 @@ fn extract_profiles_from_source() -> Vec<String> {
     }
 
     profiles
+}
+
+fn extract_operating_systems_from_source(content: &str) -> Vec<String> {
+    let mut operating_systems = Vec::new();
+    let mut in_os_block = false;
+    let mut saw_plain_marker = false;
+
+    for line in content.lines() {
+        if !in_os_block {
+            if line.contains("plain,") {
+                saw_plain_marker = true;
+                continue;
+            }
+
+            if saw_plain_marker && line.contains("EmulationOS") {
+                in_os_block = true;
+                continue;
+            }
+
+            continue;
+        }
+
+        if in_os_block {
+            if line.contains(");") {
+                break;
+            }
+
+            if let Some(start) = line.find("=> \"")
+                && let Some(end) = line[start + 4..].find('"')
+            {
+                let os = &line[start + 4..start + 4 + end];
+                operating_systems.push(os.to_string());
+            }
+        }
+    }
+
+    if operating_systems.is_empty() {
+        panic!("No operating systems found in wreq-util source!");
+    }
+
+    operating_systems
 }
