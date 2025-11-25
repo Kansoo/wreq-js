@@ -719,8 +719,29 @@ async function dispatchRequest(
 /**
  * Fetch-compatible entry point that adds browser impersonation controls.
  *
+ * **Important:** The default fetch is isolated and non-persistent by design. Each request
+ * uses a fresh connection with no shared state (cookies, TLS sessions). This prevents
+ * TLS fingerprint leakage between requests.
+ *
+ * **Use {@link createSession} or {@link withSession} if you need:**
+ * - Cookie persistence across requests
+ * - TLS connection reuse for performance
+ * - Shared connection state
+ *
  * @param input - Request URL (string or URL instance)
  * @param init - Fetch-compatible init options
+ *
+ * @example
+ * ```typescript
+ * // Isolated request (no state persistence)
+ * const response = await fetch('https://example.com');
+ *
+ * // For persistent cookies and connection reuse, use a session:
+ * await withSession(async (session) => {
+ *   await session.fetch('https://example.com/login', { method: 'POST', body: loginData });
+ *   await session.fetch('https://example.com/protected'); // Cookies from login are sent
+ * });
+ * ```
  */
 export async function fetch(input: string | URL, init?: WreqRequestInit): Promise<Response> {
   const url = normalizeUrlInput(input);
