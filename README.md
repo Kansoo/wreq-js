@@ -30,7 +30,7 @@ bun add wreq-js
 
 Prebuilt binaries are provided for:
 - macOS (Intel & Apple Silicon)
-- Linux (x64 & ARM64)
+- Linux (x64 & ARM64, glibc & musl)
 - Windows (x64)
 
 > ⚠️ If a prebuilt binary for your platform or commit is unavailable, the package will build from source.  
