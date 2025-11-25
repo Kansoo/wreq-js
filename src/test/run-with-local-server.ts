@@ -22,7 +22,7 @@ async function main() {
   const normalizeArg = (arg: string): string => {
     const abs = resolve(process.cwd(), arg);
     if (abs.endsWith(".ts")) {
-      const srcPrefix = resolve(projectRoot, "src") + "/";
+      const srcPrefix = `${resolve(projectRoot, "src")}/`;
       if (abs.startsWith(srcPrefix)) {
         const rel = abs.slice(srcPrefix.length);
         return resolve(projectRoot, "dist", rel.replace(/\.ts$/, ".js"));
