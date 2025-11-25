@@ -6,6 +6,7 @@ import type {
   BrowserProfile,
   CookieMode,
   CreateSessionOptions,
+  EmulationOS,
   HeadersInit,
   HeaderTuple,
   NativeResponse,
@@ -20,6 +21,7 @@ import { RequestError } from "./types";
 interface NativeWebSocketOptions {
   url: string;
   browser: BrowserProfile;
+  os: EmulationOS;
   headers: Record<string, string> | HeaderTuple[];
   proxy?: string;
   onMessage: (data: string | Buffer) => void;
@@ -30,6 +32,7 @@ interface NativeWebSocketOptions {
 interface NativeSessionOptions {
   sessionId: string;
   browser: BrowserProfile;
+  os: EmulationOS;
   proxy?: string;
 }
 
@@ -45,9 +48,11 @@ let nativeBinding: {
   createSession: (options: NativeSessionOptions) => string;
   clearSession: (sessionId: string) => void;
   dropSession: (sessionId: string) => void;
+  getOperatingSystems?: () => string[];
 };
 
 let cachedProfiles: BrowserProfile[] | undefined;
+let cachedOperatingSystems: EmulationOS[] | undefined;
 
 function loadNativeBinding() {
   const platform = process.platform;
@@ -125,9 +130,12 @@ const bodyHandleFinalizer =
     : undefined;
 
 const DEFAULT_BROWSER: BrowserProfile = "chrome_142";
+const DEFAULT_OS: EmulationOS = "macos";
+const SUPPORTED_OSES: readonly EmulationOS[] = ["windows", "macos", "linux", "android", "ios"];
 
 type SessionDefaults = {
   browser: BrowserProfile;
+  os: EmulationOS;
   proxy?: string;
   timeout?: number;
 };
@@ -136,6 +144,7 @@ type SessionResolution = {
   sessionId: string;
   cookieMode: CookieMode;
   dropAfterRequest: boolean;
+  defaults?: SessionDefaults;
 };
 
 function generateSessionId(): string {
@@ -146,6 +155,7 @@ function normalizeSessionOptions(options?: CreateSessionOptions): { sessionId: s
   const sessionId = options?.sessionId ?? generateSessionId();
   const defaults: SessionDefaults = {
     browser: options?.browser ?? DEFAULT_BROWSER,
+    os: options?.os ?? DEFAULT_OS,
   };
 
   if (options?.proxy !== undefined) {
@@ -392,10 +402,7 @@ function createNativeBodyStream(handleId: number): ReadableStream<Uint8Array> {
   return stream;
 }
 
-function wrapBodyStream(
-  source: ReadableStream<Uint8Array>,
-  onFirstUse: () => void,
-): ReadableStream<Uint8Array> {
+function wrapBodyStream(source: ReadableStream<Uint8Array>, onFirstUse: () => void): ReadableStream<Uint8Array> {
   let started = false;
   const reader = source.getReader();
 
@@ -579,11 +586,26 @@ export class Session implements SessionHandle {
     }
   }
 
+  /** @internal */
+  getDefaults(): SessionDefaults {
+    return { ...this.defaults };
+  }
+
   private enforceBrowser(browser?: BrowserProfile): BrowserProfile {
     const resolved = browser ?? this.defaults.browser;
 
     if (resolved !== this.defaults.browser) {
       throw new RequestError("Session browser cannot be changed after creation");
+    }
+
+    return resolved;
+  }
+
+  private enforceOs(os?: EmulationOS): EmulationOS {
+    const resolved = os ?? this.defaults.os;
+
+    if (resolved !== this.defaults.os) {
+      throw new RequestError("Session operating system cannot be changed after creation");
     }
 
     return resolved;
@@ -611,6 +633,7 @@ export class Session implements SessionHandle {
     };
 
     config.browser = this.enforceBrowser(config.browser);
+    config.os = this.enforceOs(config.os);
 
     const proxy = this.enforceProxy(config.proxy);
     if (proxy !== undefined || config.proxy !== undefined) {
@@ -674,6 +697,7 @@ function resolveSessionContext(config: WreqRequestInit): SessionResolution {
       sessionId: sessionCandidate.id,
       cookieMode: "session",
       dropAfterRequest: false,
+      defaults: sessionCandidate.getDefaults(),
     };
   }
 
@@ -848,6 +872,18 @@ function validateBrowserProfile(browser?: BrowserProfile): void {
   }
 }
 
+function validateOperatingSystem(os?: EmulationOS): void {
+  if (!os) {
+    return;
+  }
+
+  const operatingSystems = getOperatingSystems();
+
+  if (!operatingSystems.includes(os)) {
+    throw new RequestError(`Invalid operating system: ${os}. Available options: ${operatingSystems.join(", ")}`);
+  }
+}
+
 async function dispatchRequest(
   options: RequestOptions,
   requestUrl: string,
@@ -922,9 +958,29 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
   const url = normalizeUrlInput(input);
   const config = init ?? {};
   const sessionContext = resolveSessionContext(config);
+  const sessionDefaults = sessionContext.defaults;
+  const browser = config.browser ?? sessionDefaults?.browser ?? DEFAULT_BROWSER;
+  const os = config.os ?? sessionDefaults?.os ?? DEFAULT_OS;
+  const proxy = config.proxy ?? sessionDefaults?.proxy;
+  const timeout = config.timeout ?? sessionDefaults?.timeout;
 
   validateRedirectMode(config.redirect);
-  validateBrowserProfile(config.browser);
+  validateBrowserProfile(browser);
+  validateOperatingSystem(os);
+
+  if (sessionDefaults) {
+    if (browser !== sessionDefaults.browser) {
+      throw new RequestError("Session browser cannot be changed after creation");
+    }
+
+    if (os !== sessionDefaults.os) {
+      throw new RequestError("Session operating system cannot be changed after creation");
+    }
+
+    if (config.proxy !== undefined && config.proxy !== sessionDefaults.proxy) {
+      throw new RequestError("Session proxy cannot be changed after creation");
+    }
+  }
 
   const headers = new Headers(config.headers);
   const method = ensureMethod(config.method);
@@ -938,11 +994,12 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
   const requestOptions: RequestOptions = {
     url,
     method,
-    ...(config.browser && { browser: config.browser }),
+    browser,
+    os,
     ...(hasHeaders && { headers: headerTuples }),
     ...(body !== undefined && { body }),
-    ...(config.proxy !== undefined && { proxy: config.proxy }),
-    ...(config.timeout !== undefined && { timeout: config.timeout }),
+    ...(proxy !== undefined && { proxy }),
+    ...(timeout !== undefined && { timeout }),
     ...(config.redirect !== undefined && { redirect: config.redirect }),
     ...(config.disableDefaultHeaders !== undefined && { disableDefaultHeaders: config.disableDefaultHeaders }),
     sessionId: sessionContext.sessionId,
@@ -966,6 +1023,7 @@ export async function createSession(options?: CreateSessionOptions): Promise<Ses
   const { sessionId, defaults } = normalizeSessionOptions(options);
 
   validateBrowserProfile(defaults.browser);
+  validateOperatingSystem(defaults.os);
 
   let createdId: string;
 
@@ -973,6 +1031,7 @@ export async function createSession(options?: CreateSessionOptions): Promise<Ses
     createdId = nativeBinding.createSession({
       sessionId,
       browser: defaults.browser,
+      os: defaults.os,
       ...(defaults.proxy !== undefined && { proxy: defaults.proxy }),
     });
   } catch (error) {
@@ -1022,6 +1081,10 @@ export async function request(options: RequestOptions): Promise<Response> {
     init.browser = rest.browser;
   }
 
+  if (rest.os !== undefined) {
+    init.os = rest.os;
+  }
+
   if (rest.proxy !== undefined) {
     init.proxy = rest.proxy;
   }
@@ -1064,6 +1127,20 @@ export function getProfiles(): BrowserProfile[] {
   }
 
   return cachedProfiles;
+}
+
+/**
+ * Get list of supported operating systems for emulation.
+ *
+ * @returns Array of operating system identifiers
+ */
+export function getOperatingSystems(): EmulationOS[] {
+  if (!cachedOperatingSystems) {
+    const fromNative = nativeBinding.getOperatingSystems?.() as EmulationOS[] | undefined;
+    cachedOperatingSystems = fromNative && fromNative.length > 0 ? fromNative : [...SUPPORTED_OSES];
+  }
+
+  return cachedOperatingSystems;
 }
 
 /**
@@ -1184,19 +1261,17 @@ export async function websocket(options: WebSocketOptions): Promise<WebSocket> {
     throw new RequestError("onMessage callback is required");
   }
 
-  if (options.browser) {
-    const profiles = getProfiles();
-
-    if (!profiles.includes(options.browser)) {
-      throw new RequestError(`Invalid browser profile: ${options.browser}. Available profiles: ${profiles.join(", ")}`);
-    }
-  }
+  validateBrowserProfile(options.browser);
+  const os = options.os ?? DEFAULT_OS;
+  validateOperatingSystem(os);
+  const browser = options.browser ?? DEFAULT_BROWSER;
 
   try {
     const connection = await nativeBinding.websocketConnect({
       url: options.url,
-      browser: options.browser || DEFAULT_BROWSER,
-      headers: options.headers || {},
+      browser,
+      os,
+      headers: options.headers ?? {},
       ...(options.proxy !== undefined && { proxy: options.proxy }),
       onMessage: options.onMessage,
       ...(options.onClose !== undefined && { onClose: options.onClose }),
@@ -1214,6 +1289,7 @@ export type {
   BrowserProfile,
   CookieMode,
   CreateSessionOptions,
+  EmulationOS,
   HeadersInit,
   RequestInit,
   RequestOptions,
@@ -1229,6 +1305,7 @@ export default {
   get,
   post,
   getProfiles,
+  getOperatingSystems,
   createSession,
   withSession,
   websocket,

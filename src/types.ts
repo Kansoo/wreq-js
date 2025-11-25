@@ -1,6 +1,6 @@
-// Import and re-export the auto-generated BrowserProfile type
-import type { BrowserProfile } from "./generated-types";
-export type { BrowserProfile };
+// Import and re-export the auto-generated BrowserProfile and EmulationOS types
+import type { BrowserProfile, EmulationOS } from "./generated-types";
+export type { BrowserProfile, EmulationOS };
 
 /**
  * Controls how cookies are scoped for a request.
@@ -120,6 +120,13 @@ export interface RequestInit {
   browser?: BrowserProfile;
 
   /**
+   * Operating system to emulate for this request.
+   * Influences platform-specific headers and TLS fingerprints.
+   * @default 'macos'
+   */
+  os?: EmulationOS;
+
+  /**
    * Proxy URL to route the request through (e.g., 'http://proxy.example.com:8080').
    * Supports HTTP and SOCKS5 proxies.
    */
@@ -171,6 +178,11 @@ export interface CreateSessionOptions {
    * Browser profile to bind to this session. Defaults to 'chrome_142'.
    */
   browser?: BrowserProfile;
+
+  /**
+   * Operating system to bind to this session. Defaults to 'macos'.
+   */
+  os?: EmulationOS;
   /**
    * Optional proxy for every request made through the session.
    */
@@ -215,6 +227,12 @@ export interface RequestOptions {
    * @default 'chrome_142'
    */
   browser?: BrowserProfile;
+
+  /**
+   * Operating system to emulate.
+   * @default 'macos'
+   */
+  os?: EmulationOS;
 
   /**
    * HTTP method to use for the request.
@@ -350,6 +368,12 @@ export interface WebSocketOptions {
    * @default 'chrome_142'
    */
   browser?: BrowserProfile;
+
+  /**
+   * Operating system to emulate for the WebSocket handshake.
+   * @default 'macos'
+   */
+  os?: EmulationOS;
 
   /**
    * Additional headers to send with the WebSocket upgrade request.

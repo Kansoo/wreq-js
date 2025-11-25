@@ -24,7 +24,7 @@ use websocket::{
     WebSocketOptions, connect_websocket, get_connection, remove_connection, store_connection,
 };
 use wreq::ws::message::Message;
-use wreq_util::Emulation;
+use wreq_util::{Emulation, EmulationOS};
 
 const WS_EVENT_BUFFER: usize = 64;
 static REQUEST_CANCELLATIONS: Lazy<DashMap<u64, CancellationToken>> = Lazy::new(DashMap::new);
@@ -35,6 +35,11 @@ fn parse_emulation(browser: &str) -> Emulation {
     // If deserialization fails, default to Chrome142
     serde_json::from_value(serde_json::Value::String(browser.to_string()))
         .unwrap_or(Emulation::Chrome142)
+}
+
+fn parse_emulation_os(os: &str) -> EmulationOS {
+    serde_json::from_value(serde_json::Value::String(os.to_string()))
+        .unwrap_or(EmulationOS::MacOS)
 }
 
 fn coerce_header_value(cx: &mut FunctionContext, value: Handle<JsValue>) -> NeonResult<String> {
@@ -137,6 +142,13 @@ fn js_object_to_request_options(
         .unwrap_or_else(|| "chrome_142".to_string());
 
     let emulation = parse_emulation(&browser_str);
+    let os_str = obj
+        .get_opt(cx, "os")?
+        .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(cx).ok())
+        .map(|v| v.value(cx))
+        .unwrap_or_else(|| "macos".to_string());
+
+    let emulation_os = parse_emulation_os(&os_str);
 
     // Get method (optional, defaults to GET)
     let method = obj
@@ -217,6 +229,7 @@ fn js_object_to_request_options(
     Ok(RequestOptions {
         url,
         emulation,
+        emulation_os,
         headers,
         method,
         body,
@@ -333,12 +346,24 @@ fn get_profiles(mut cx: FunctionContext) -> JsResult<JsArray> {
     Ok(js_array)
 }
 
+// Get list of available operating systems for emulation
+fn get_operating_systems(mut cx: FunctionContext) -> JsResult<JsArray> {
+    let js_array = cx.empty_array();
+
+    for (i, os) in generated_profiles::OPERATING_SYSTEMS.iter().enumerate() {
+        let js_string = cx.string(*os);
+        js_array.set(&mut cx, i as u32, js_string)?;
+    }
+
+    Ok(js_array)
+}
+
 fn create_session(mut cx: FunctionContext) -> JsResult<JsString> {
     let options_value = cx.argument_opt(0);
 
-    let (session_id_opt, browser_opt, proxy_opt) = if let Some(value) = options_value {
+    let (session_id_opt, browser_opt, os_opt, proxy_opt) = if let Some(value) = options_value {
         if value.is_a::<JsUndefined, _>(&mut cx) || value.is_a::<JsNull, _>(&mut cx) {
-            (None, None, None)
+            (None, None, None, None)
         } else {
             let obj = value.downcast_or_throw::<JsObject, _>(&mut cx)?;
             let session_id = obj
@@ -349,21 +374,27 @@ fn create_session(mut cx: FunctionContext) -> JsResult<JsString> {
                 .get_opt(&mut cx, "browser")?
                 .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(&mut cx).ok())
                 .map(|v| v.value(&mut cx));
+            let os = obj
+                .get_opt(&mut cx, "os")?
+                .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(&mut cx).ok())
+                .map(|v| v.value(&mut cx));
             let proxy = obj
                 .get_opt(&mut cx, "proxy")?
                 .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(&mut cx).ok())
                 .map(|v| v.value(&mut cx));
-            (session_id, browser, proxy)
+            (session_id, browser, os, proxy)
         }
     } else {
-        (None, None, None)
+        (None, None, None, None)
     };
 
     let session_id = session_id_opt.unwrap_or_else(generate_session_id);
     let browser_str = browser_opt.unwrap_or_else(|| "chrome_142".to_string());
+    let os_str = os_opt.unwrap_or_else(|| "macos".to_string());
     let emulation = parse_emulation(&browser_str);
+    let emulation_os = parse_emulation_os(&os_str);
 
-    match create_managed_session(session_id.clone(), emulation, proxy_opt) {
+    match create_managed_session(session_id.clone(), emulation, emulation_os, proxy_opt) {
         Ok(id) => Ok(cx.string(id)),
         Err(e) => {
             let msg = format!("{:#}", e);
@@ -448,6 +479,12 @@ fn websocket_connect(mut cx: FunctionContext) -> JsResult<JsPromise> {
         .unwrap_or_else(|| "chrome_142".to_string());
 
     let emulation = parse_emulation(&browser_str);
+    let os_str = options_obj
+        .get_opt(&mut cx, "os")?
+        .and_then(|v: Handle<JsValue>| v.downcast::<JsString, _>(&mut cx).ok())
+        .map(|v| v.value(&mut cx))
+        .unwrap_or_else(|| "macos".to_string());
+    let emulation_os = parse_emulation_os(&os_str);
 
     // Get headers (optional)
     let headers = if let Ok(Some(headers_value)) = options_obj.get_opt(&mut cx, "headers") {
@@ -470,6 +507,7 @@ fn websocket_connect(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let options = WebSocketOptions {
         url,
         emulation,
+        emulation_os,
         headers,
         proxy,
     };
@@ -741,6 +779,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("readBodyChunk", read_body_chunk)?;
     cx.export_function("cancelBody", cancel_body_stream)?;
     cx.export_function("getProfiles", get_profiles)?;
+    cx.export_function("getOperatingSystems", get_operating_systems)?;
     cx.export_function("createSession", create_session)?;
     cx.export_function("clearSession", clear_session)?;
     cx.export_function("dropSession", drop_session)?;

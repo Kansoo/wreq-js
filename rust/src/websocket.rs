@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Mutex;
 use wreq::ws::WebSocket;
 use wreq::ws::message::Message;
-use wreq_util::Emulation;
+use wreq_util::{Emulation, EmulationOS, EmulationOption};
 
 // Global storage for WebSocket connections
 static WS_CONNECTIONS: Lazy<DashMap<u64, Arc<WsConnection>>> = Lazy::new(DashMap::new);
@@ -20,6 +20,7 @@ static NEXT_WS_ID: AtomicU64 = AtomicU64::new(1);
 pub struct WebSocketOptions {
     pub url: String,
     pub emulation: Emulation,
+    pub emulation_os: EmulationOS,
     pub headers: IndexMap<String, String>,
     pub proxy: Option<String>,
 }
@@ -92,7 +93,11 @@ pub async fn connect_websocket(
     options: WebSocketOptions,
 ) -> Result<(WsConnection, futures_util::stream::SplitStream<WebSocket>)> {
     // Build client with emulation and proxy
-    let mut client_builder = wreq::Client::builder().emulation(options.emulation);
+    let emulation = EmulationOption::builder()
+        .emulation(options.emulation)
+        .emulation_os(options.emulation_os)
+        .build();
+    let mut client_builder = wreq::Client::builder().emulation(emulation);
 
     // Apply proxy if present
     if let Some(proxy_url) = &options.proxy {

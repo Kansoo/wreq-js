@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use dashmap::DashMap;
 use futures_util::{Stream, StreamExt};
@@ -7,14 +7,14 @@ use moka::sync::Cache;
 use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 use wreq::{Client as HttpClient, Method, Proxy, redirect};
-use wreq_util::Emulation;
+use wreq_util::{Emulation, EmulationOS, EmulationOption};
 
 pub static HTTP_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -49,6 +49,7 @@ impl RedirectMode {
 pub struct RequestOptions {
     pub url: String,
     pub emulation: Emulation,
+    pub emulation_os: EmulationOS,
     pub headers: IndexMap<String, String>,
     pub method: String,
     pub body: Option<Vec<u8>>,
@@ -73,6 +74,7 @@ pub struct Response {
 #[derive(Clone)]
 struct SessionConfig {
     emulation: Emulation,
+    emulation_os: EmulationOS,
     label: String,
     proxy: Option<String>,
 }
@@ -81,15 +83,17 @@ impl SessionConfig {
     fn from_request(options: &RequestOptions) -> Self {
         Self {
             emulation: options.emulation,
-            label: emulation_label(&options.emulation),
+            emulation_os: options.emulation_os,
+            label: emulation_label(&options.emulation, &options.emulation_os),
             proxy: options.proxy.clone(),
         }
     }
 
-    fn new(emulation: Emulation, proxy: Option<String>) -> Self {
-        let label = emulation_label(&emulation);
+    fn new(emulation: Emulation, emulation_os: EmulationOS, proxy: Option<String>) -> Self {
+        let label = emulation_label(&emulation, &emulation_os);
         Self {
             emulation,
+            emulation_os,
             label,
             proxy,
         }
@@ -110,11 +114,9 @@ struct SessionManager {
     cache: Cache<String, Arc<SessionEntry>>,
 }
 
-pub type ResponseBodyStream =
-    Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>;
+pub type ResponseBodyStream = Pin<Box<dyn Stream<Item = wreq::Result<Bytes>> + Send>>;
 
-static BODY_STREAMS: Lazy<DashMap<u64, Arc<Mutex<ResponseBodyStream>>>> =
-    Lazy::new(DashMap::new);
+static BODY_STREAMS: Lazy<DashMap<u64, Arc<Mutex<ResponseBodyStream>>>> = Lazy::new(DashMap::new);
 static NEXT_BODY_HANDLE: AtomicU64 = AtomicU64::new(1);
 
 fn next_body_handle() -> u64 {
@@ -168,7 +170,7 @@ impl SessionManager {
                 return Ok(entry.client.clone());
             } else {
                 anyhow::bail!(
-                    "Session '{}' was created with different browser/proxy configuration",
+                    "Session '{}' was created with different browser/os/proxy configuration",
                     session_id
                 );
             }
@@ -327,8 +329,13 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
 }
 
 fn build_client(config: &SessionConfig) -> Result<HttpClient> {
-    let mut client_builder = HttpClient::builder()
+    let emulation = EmulationOption::builder()
         .emulation(config.emulation)
+        .emulation_os(config.emulation_os)
+        .build();
+
+    let mut client_builder = HttpClient::builder()
+        .emulation(emulation)
         .cookie_store(true);
 
     if let Some(proxy_url) = config.proxy.as_deref() {
@@ -341,11 +348,18 @@ fn build_client(config: &SessionConfig) -> Result<HttpClient> {
         .context("Failed to build HTTP client")
 }
 
-fn emulation_label(emulation: &Emulation) -> String {
-    match serde_json::to_value(emulation) {
+fn emulation_label(emulation: &Emulation, os: &EmulationOS) -> String {
+    let browser = match serde_json::to_value(emulation) {
         Ok(Value::String(label)) => label,
         _ => "chrome_142".to_string(),
-    }
+    };
+
+    let os_label = match serde_json::to_value(os) {
+        Ok(Value::String(label)) => label,
+        _ => "macos".to_string(),
+    };
+
+    format!("{}@{}", browser, os_label)
 }
 
 fn response_allows_body(status: u16, method: &str) -> bool {
@@ -362,9 +376,10 @@ fn response_allows_body(status: u16, method: &str) -> bool {
 pub fn create_managed_session(
     session_id: String,
     emulation: Emulation,
+    emulation_os: EmulationOS,
     proxy: Option<String>,
 ) -> Result<String> {
-    let config = SessionConfig::new(emulation, proxy);
+    let config = SessionConfig::new(emulation, emulation_os, proxy);
     SESSION_MANAGER.create_session(session_id, config)
 }
 
