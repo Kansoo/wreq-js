@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { describe, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { fetch as wreqFetch } from "../../wreq-js";
+import { createSession, fetch as wreqFetch } from "../../wreq-js";
 import { httpUrl } from "../helpers/http";
 
 const isLocalHttpBase =
@@ -13,7 +13,7 @@ describe("HTTP requests", () => {
   test("performs a basic GET request", async () => {
     const response = await wreqFetch(httpUrl("/get"), {
       browser: "chrome_131",
-      timeout: 10000,
+      timeout: 10_000,
     });
 
     assert.ok(response.status >= 200 && response.status < 300, "Should return successful status");
@@ -32,7 +32,7 @@ describe("HTTP requests", () => {
     for (const browser of browsers) {
       const response = await wreqFetch(testUrl, {
         browser,
-        timeout: 10000,
+        timeout: 10_000,
       });
 
       assert.strictEqual(response.status, 200, `${browser} should return status 200`);
@@ -41,6 +41,56 @@ describe("HTTP requests", () => {
 
       assert.ok(data["user-agent"], `${browser} should provide a user-agent header`);
       assert.ok(response.bodyUsed, "json() should consume the body stream");
+    }
+  });
+
+  test("defaults to macOS operating system emulation", async () => {
+    const response = await wreqFetch(httpUrl("/user-agent"), {
+      browser: "chrome_142",
+      timeout: 10_000,
+    });
+
+    assert.strictEqual(response.status, 200, "Should return status 200");
+    const data = await response.json<{ "user-agent"?: string }>();
+    const userAgent = data["user-agent"] ?? "";
+
+    assert.ok(/Macintosh|Mac OS X/i.test(userAgent), "Should emit macOS user agent by default");
+  });
+
+  test("allows choosing an operating system to emulate", async () => {
+    const response = await wreqFetch(httpUrl("/user-agent"), {
+      browser: "chrome_142",
+      os: "windows",
+      timeout: 10_000,
+    });
+
+    assert.strictEqual(response.status, 200, "Should return status 200");
+    const data = await response.json<{ "user-agent"?: string }>();
+    const userAgent = data["user-agent"] ?? "";
+
+    assert.ok(/Windows NT|Win64/i.test(userAgent), "Should emit Windows user agent when requested");
+    assert.ok(!/Macintosh|Mac OS X/i.test(userAgent), "Should not emit macOS user agent when Windows selected");
+  });
+
+  test("applies session operating system to all requests", async () => {
+    const session = await createSession({
+      browser: "chrome_142",
+      os: "linux",
+      timeout: 10_000,
+    });
+
+    try {
+      const response = await session.fetch(httpUrl("/user-agent"), {
+        timeout: 10_000,
+      });
+
+      assert.strictEqual(response.status, 200, "Should return status 200");
+      const data = await response.json<{ "user-agent"?: string }>();
+      const userAgent = data["user-agent"] ?? "";
+
+      assert.ok(/Linux/i.test(userAgent), "Should emit Linux user agent when session OS is linux");
+    } finally {
+      await session.close();
     }
   });
 
@@ -84,7 +134,7 @@ describe("HTTP requests", () => {
     assert.ok(response.body && typeof response.body.getReader === "function", "body should be a ReadableStream");
     assert.strictEqual(response.bodyUsed, false, "bodyUsed should remain false before consumption");
 
-    const reader = response.body!.getReader();
+    const reader = response.body?.getReader();
     let chunkCount = 0;
     let totalBytes = 0;
 
@@ -97,7 +147,7 @@ describe("HTTP requests", () => {
       chunkCount += 1;
       totalBytes += value?.byteLength ?? 0;
       assert.ok(value, "chunk should have data");
-      assert.strictEqual(value![0], chunkCount - 1, "chunk data should preserve order");
+      assert.strictEqual(value?.[0], chunkCount - 1, "chunk data should preserve order");
     }
 
     assert.strictEqual(chunkCount, 4, "should receive all chunks");
