@@ -143,6 +143,9 @@ jobs:
           AR_aarch64_unknown_linux_musl: aarch64-linux-musl-ar
           RANLIB_aarch64_unknown_linux_musl: aarch64-linux-musl-ranlib
 
+          # Point bindgen at the musl sysroot for header files
+          BINDGEN_EXTRA_CLANG_ARGS_aarch64_unknown_linux_musl: --sysroot=$HOME/musl-cross/aarch64-linux-musl-cross/aarch64-linux-musl
+
           # Optional: keep it static
           RUSTFLAGS: -C target-feature=-crt-static
         run: npm run build:rust
