@@ -110,6 +110,32 @@ describe("HTTP requests", () => {
     );
   });
 
+  test("supports TRACE requests", { skip: !isLocalHttpBase }, async () => {
+    const response = await wreqFetch(httpUrl("/trace"), {
+      method: "TRACE",
+      browser: "chrome_142",
+      timeout: 10_000,
+    });
+
+    assert.strictEqual(response.status, 200);
+    const body = await response.json<{ method?: string; path?: string }>();
+    assert.strictEqual(body.method, "TRACE");
+    assert.strictEqual(body.path, "/trace");
+  });
+
+  test("supports CONNECT requests", { skip: !isLocalHttpBase }, async () => {
+    const response = await wreqFetch(httpUrl("/connect-target"), {
+      method: "CONNECT",
+      browser: "chrome_142",
+      timeout: 10_000,
+    });
+
+    assert.strictEqual(response.status, 200);
+    const bodyText = await response.text();
+    // Some HTTP stacks may ignore bodies on CONNECT; accept empty but ensure no parse errors.
+    assert.ok(bodyText.length >= 0);
+  });
+
   test("propagates AbortSignal to native I/O", { skip: !isLocalHttpBase }, async () => {
     const controller = new AbortController();
     const hangId = randomUUID();

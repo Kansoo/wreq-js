@@ -32,6 +32,41 @@ export async function startLocalTestServer(): Promise<LocalTestServer> {
   server.on("connection", (socket: Socket) => {
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
+    socket.on("error", () => {
+      // Ignore connection-level errors during tests to avoid crashing the harness.
+    });
+  });
+
+  server.on("connect", (req: IncomingMessage, socket: Socket, head: Buffer) => {
+    // Respond with a simple JSON body to exercise CONNECT handling without tunneling.
+    socket.on("error", () => {
+      // Swallow errors; client may close the tunnel abruptly.
+    });
+    try {
+      const payload = JSON.stringify({
+        method: req.method ?? "CONNECT",
+        target: req.url ?? "",
+        headers: req.headers,
+        headLength: head.length,
+      });
+
+      socket.write(
+        [
+          "HTTP/1.1 200 Connection Established",
+          "Content-Type: application/json",
+          `Content-Length: ${Buffer.byteLength(payload)}`,
+          "Connection: close",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      socket.write(payload);
+    } catch (error) {
+      console.error("Local test server CONNECT handler error:", error);
+      socket.write("HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n");
+    } finally {
+      socket.end();
+    }
   });
 
   server.on("upgrade", (req, socket: Socket, head) => {
@@ -102,6 +137,14 @@ export async function startLocalTestServer(): Promise<LocalTestServer> {
       return json(res, {
         headers: canonicalizeHeaders(req),
         rawHeaders: req.rawHeaders,
+      });
+    }
+
+    if (req.method === "TRACE") {
+      return json(res, {
+        method: req.method,
+        path,
+        headers: canonicalizeHeaders(req),
       });
     }
 
