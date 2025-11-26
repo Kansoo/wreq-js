@@ -145,7 +145,7 @@ jobs:
           export RANLIB_aarch64_unknown_linux_musl=aarch64-linux-musl-ranlib
 
           # Tell bindgen/clang where the target's libc headers live
-          export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$SYSROOT -I$SYSROOT/include"
+          export BINDGEN_EXTRA_CLANG_ARGS_aarch64_unknown_linux_musl="--sysroot=$SYSROOT -D__DEFINED_wchar_t"
 
           export RUSTFLAGS="-C target-feature=-crt-static"
 
