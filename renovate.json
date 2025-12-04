@@ -1,13 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":disableDependencyDashboard", "helpers:pinGitHubActionDigests"],
-  "schedule": ["after 10pm every weekday", "before 5am every weekday"],
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 10,
-  "rangeStrategy": "replace",
-
   "labels": ["dependencies"],
-
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
   "packageRules": [
     {
       "description": "Do not create pin-only PRs (keep library-style semver ranges)",
@@ -39,6 +37,13 @@
       "matchUpdateTypes": ["minor"],
       "minimumReleaseAge": "7 days",
       "automerge": false
+    },
+    {
+      "description": "Always track wreq pre-releases on Cargo",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["wreq", "wreq-util"],
+      "ignoreUnstable": false,
+      "respectLatest": false
     }
   ]
 }
