@@ -390,6 +390,7 @@ function cloneNativeResponse(payload: NativeResponse): NativeResponse {
     status: payload.status,
     headers: { ...payload.headers },
     bodyHandle: payload.bodyHandle,
+    bodyBytes: payload.bodyBytes ? Buffer.from(payload.bodyBytes) : null,
     contentLength: payload.contentLength,
     cookies: { ...payload.cookies },
     url: payload.url,
@@ -486,6 +487,7 @@ export class Response {
 
   private readonly payload: NativeResponse;
   private readonly requestUrl: string;
+  private inlineBody: Buffer | null;
   private bodySource: ReadableStream<Uint8Array> | null;
   private bodyStream: ReadableStream<Uint8Array> | null | undefined;
   // Track if we can use the fast path (native handle not yet wrapped in a stream)
@@ -502,10 +504,15 @@ export class Response {
     this.redirected = this.url !== requestUrl;
     this.cookies = { ...this.payload.cookies };
     this.contentLength = this.payload.contentLength ?? null;
+    this.inlineBody = this.payload.bodyBytes ?? null;
 
     if (typeof bodySource !== "undefined") {
       // External stream provided (e.g., from clone) - no fast path
       this.bodySource = bodySource;
+      this.nativeHandleAvailable = false;
+    } else if (this.inlineBody !== null) {
+      // Inline body provided by native layer
+      this.bodySource = null;
       this.nativeHandleAvailable = false;
     } else if (this.payload.bodyHandle !== null) {
       // Defer stream creation - we might use fast path instead
@@ -520,7 +527,18 @@ export class Response {
   }
 
   get body(): ReadableStream<Uint8Array> | null {
-    if (this.payload.bodyHandle === null && this.bodySource === null) {
+    if (this.inlineBody && this.bodySource === null) {
+      const bytes = this.inlineBody;
+      this.inlineBody = null;
+      this.bodySource = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(bytes));
+          controller.close();
+        },
+      });
+    }
+
+    if (this.inlineBody === null && this.payload.bodyHandle === null && this.bodySource === null) {
       return null;
     }
 
@@ -600,6 +618,12 @@ export class Response {
   private async consumeBody(): Promise<Buffer> {
     this.assertBodyAvailable();
     this.bodyUsed = true;
+
+    if (this.inlineBody) {
+      const bytes = this.inlineBody;
+      this.inlineBody = null;
+      return bytes;
+    }
 
     // Fast path: if native handle is still available, read entire body in one Rust call
     if (this.nativeHandleAvailable && this.payload.bodyHandle !== null) {
