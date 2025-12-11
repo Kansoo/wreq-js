@@ -1013,6 +1013,23 @@ async function dispatchRequest(
   requestUrl: string,
   signal?: AbortSignal | null,
 ): Promise<Response> {
+  // Fast path when no abort signal is provided: avoid Promise.race/allocation overhead.
+  if (!signal) {
+    const requestId = generateRequestId();
+    let payload: NativeResponse;
+
+    try {
+      payload = (await nativeBinding.request(options, requestId)) as NativeResponse;
+    } catch (error) {
+      if (error instanceof RequestError) {
+        throw error;
+      }
+      throw new RequestError(String(error));
+    }
+
+    return new Response(payload, requestUrl);
+  }
+
   const requestId = generateRequestId();
   const cancelNative = () => {
     try {
@@ -1023,8 +1040,13 @@ async function dispatchRequest(
   };
 
   const abortHandler = setupAbort(signal, cancelNative);
-  const nativePromise = nativeBinding.request(options, requestId);
-  const pending = abortHandler ? Promise.race([nativePromise, abortHandler.promise]) : nativePromise;
+  if (!abortHandler) {
+    // setupAbort only returns null when the signal is already aborted; treat as immediate abort.
+    cancelNative();
+    throw createAbortError(signal.reason);
+  }
+
+  const pending = Promise.race([nativeBinding.request(options, requestId), abortHandler.promise]);
 
   let payload: NativeResponse;
 
@@ -1041,7 +1063,7 @@ async function dispatchRequest(
 
     throw new RequestError(String(error));
   } finally {
-    abortHandler?.cleanup();
+    abortHandler.cleanup();
   }
 
   return new Response(payload, requestUrl);
@@ -1090,9 +1112,18 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
   const insecure = config.insecure ?? sessionDefaults?.insecure;
 
   validateRedirectMode(config.redirect);
-  validateBrowserProfile(browser);
-  validateOperatingSystem(os);
-  validateTimeout(timeout);
+
+  // Defaults from a managed session are already validated at creation time; skip re-validating
+  // unless the caller attempts to override them (which would be rejected below).
+  if (!sessionDefaults || config.browser !== undefined) {
+    validateBrowserProfile(browser);
+  }
+  if (!sessionDefaults || config.os !== undefined) {
+    validateOperatingSystem(os);
+  }
+  if (!sessionDefaults || config.timeout !== undefined) {
+    validateTimeout(timeout);
+  }
 
   if (sessionDefaults) {
     if (browser !== sessionDefaults.browser) {
@@ -1108,21 +1139,20 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
     }
   }
 
-  const headers = new Headers(config.headers);
   const method = ensureMethod(config.method);
   const body = serializeBody(config.body ?? null);
 
   ensureBodyAllowed(method, body);
 
-  const headerTuples = headers.toTuples();
-  const hasHeaders = headerTuples.length > 0;
+  // Only normalize headers when provided; avoids per-request header allocations on hot paths
+  const headerTuples =
+    config.headers === undefined ? undefined : new Headers(config.headers).toTuples();
 
   const requestOptions: RequestOptions = {
     url,
     method,
     browser,
     os,
-    ...(hasHeaders && { headers: headerTuples }),
     ...(body !== undefined && { body }),
     ...(proxy !== undefined && { proxy }),
     ...(timeout !== undefined && { timeout }),
@@ -1132,6 +1162,10 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
     sessionId: sessionContext.sessionId,
     ephemeral: sessionContext.dropAfterRequest,
   };
+
+  if (headerTuples && headerTuples.length > 0) {
+    requestOptions.headers = headerTuples;
+  }
 
   try {
     return await dispatchRequest(requestOptions, url, config.signal ?? null);
