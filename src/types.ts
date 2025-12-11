@@ -363,6 +363,12 @@ export interface NativeResponse {
   bodyHandle: number | null;
 
   /**
+   * Inline body buffer returned for small payloads. When present, `bodyHandle`
+   * will be `null` to avoid a second native round-trip to read the body.
+   */
+  bodyBytes: Buffer | null;
+
+  /**
    * Optional Content-Length hint reported by the server after decompression.
    */
   contentLength: number | null;
