@@ -166,6 +166,7 @@ const bodyHandleFinalizer =
 const DEFAULT_BROWSER: BrowserProfile = "chrome_142";
 const DEFAULT_OS: EmulationOS = "macos";
 const SUPPORTED_OSES: readonly EmulationOS[] = ["windows", "macos", "linux", "android", "ios"];
+const UTF8_DECODER = new TextDecoder("utf-8");
 
 type SessionDefaults = {
   browser: BrowserProfile;
@@ -390,7 +391,7 @@ function cloneNativeResponse(payload: NativeResponse): NativeResponse {
     status: payload.status,
     headers: { ...payload.headers },
     bodyHandle: payload.bodyHandle,
-    bodyBytes: payload.bodyBytes ? Buffer.from(payload.bodyBytes) : null,
+    bodyBytes: payload.bodyBytes,
     contentLength: payload.contentLength,
     cookies: { ...payload.cookies },
     url: payload.url,
@@ -590,8 +591,7 @@ export class Response {
 
   async text(): Promise<string> {
     const bytes = await this.consumeBody();
-    const decoder = new TextDecoder("utf-8");
-    return decoder.decode(bytes);
+    return UTF8_DECODER.decode(bytes);
   }
 
   clone(): Response {
@@ -737,11 +737,12 @@ export class Session implements SessionHandle {
   async fetch(input: string | URL, init?: WreqRequestInit): Promise<Response> {
     this.ensureActive();
 
-    const config: WreqRequestInit = {
-      ...(init ?? {}),
-      session: this,
-      cookieMode: "session",
-    };
+    const config: WreqRequestInit = {};
+    if (init) {
+      Object.assign(config, init);
+    }
+    config.session = this;
+    config.cookieMode = "session";
 
     config.browser = this.enforceBrowser(config.browser);
     config.os = this.enforceOs(config.os);
@@ -1161,15 +1162,28 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
     method,
     browser,
     os,
-    ...(body !== undefined && { body }),
-    ...(proxy !== undefined && { proxy }),
-    ...(timeout !== undefined && { timeout }),
-    ...(config.redirect !== undefined && { redirect: config.redirect }),
-    ...(config.disableDefaultHeaders !== undefined && { disableDefaultHeaders: config.disableDefaultHeaders }),
-    ...(insecure !== undefined && { insecure }),
     sessionId: sessionContext.sessionId,
     ephemeral: sessionContext.dropAfterRequest,
   };
+
+  if (body !== undefined) {
+    requestOptions.body = body;
+  }
+  if (proxy !== undefined) {
+    requestOptions.proxy = proxy;
+  }
+  if (timeout !== undefined) {
+    requestOptions.timeout = timeout;
+  }
+  if (config.redirect !== undefined) {
+    requestOptions.redirect = config.redirect;
+  }
+  if (config.disableDefaultHeaders !== undefined) {
+    requestOptions.disableDefaultHeaders = config.disableDefaultHeaders;
+  }
+  if (insecure !== undefined) {
+    requestOptions.insecure = insecure;
+  }
 
   if (headerTuples && headerTuples.length > 0) {
     requestOptions.headers = headerTuples;
@@ -1317,7 +1331,12 @@ export function getOperatingSystems(): EmulationOS[] {
  * Convenience helper for GET requests using {@link fetch}.
  */
 export async function get(url: string, init?: Omit<WreqRequestInit, "method">): Promise<Response> {
-  return fetch(url, { ...(init ?? {}), method: "GET" });
+  const config: WreqRequestInit = {};
+  if (init) {
+    Object.assign(config, init);
+  }
+  config.method = "GET";
+  return fetch(url, config);
 }
 
 /**
@@ -1328,11 +1347,14 @@ export async function post(
   body?: BodyInit | null,
   init?: Omit<WreqRequestInit, "method" | "body">,
 ): Promise<Response> {
-  const config: WreqRequestInit = {
-    ...(init ?? {}),
-    method: "POST",
-    ...(body !== undefined ? { body } : {}),
-  };
+  const config: WreqRequestInit = {};
+  if (init) {
+    Object.assign(config, init);
+  }
+  config.method = "POST";
+  if (body !== undefined) {
+    config.body = body;
+  }
 
   return fetch(url, config);
 }
