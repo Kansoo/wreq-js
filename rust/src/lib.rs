@@ -18,6 +18,7 @@ use neon::types::{
     buffer::TypedArray,
 };
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Semaphore, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -32,15 +33,37 @@ static REQUEST_CANCELLATIONS: Lazy<DashMap<u64, CancellationToken>> = Lazy::new(
 
 // Parse browser string to Emulation enum using serde
 fn parse_emulation(browser: &str) -> Emulation {
-    // Use serde to deserialize the string into the enum
-    // If deserialization fails, default to Chrome142
-    serde_json::from_value(serde_json::Value::String(browser.to_string()))
+    static EMULATION_CACHE: Lazy<HashMap<&'static str, Emulation>> = Lazy::new(|| {
+        generated_profiles::BROWSER_PROFILES
+            .iter()
+            .filter_map(|label| {
+                // Populate cache once up-front; failures fall back to the default below.
+                serde_json::from_value::<Emulation>(serde_json::Value::String((*label).to_string()))
+                    .ok()
+                    .map(|emulation| (*label, emulation))
+            })
+            .collect()
+    });
+
+    EMULATION_CACHE
+        .get(browser)
+        .cloned()
         .unwrap_or(Emulation::Chrome142)
 }
 
 fn parse_emulation_os(os: &str) -> EmulationOS {
-    serde_json::from_value(serde_json::Value::String(os.to_string()))
-        .unwrap_or(EmulationOS::MacOS)
+    static OS_CACHE: Lazy<HashMap<&'static str, EmulationOS>> = Lazy::new(|| {
+        generated_profiles::OPERATING_SYSTEMS
+            .iter()
+            .filter_map(|label| {
+                serde_json::from_value::<EmulationOS>(serde_json::Value::String((*label).to_string()))
+                    .ok()
+                    .map(|emulation_os| (*label, emulation_os))
+            })
+            .collect()
+    });
+
+    OS_CACHE.get(os).cloned().unwrap_or(EmulationOS::MacOS)
 }
 
 fn coerce_header_value(cx: &mut FunctionContext, value: Handle<JsValue>) -> NeonResult<String> {
