@@ -1154,8 +1154,7 @@ export async function fetch(input: string | URL, init?: WreqRequestInit): Promis
   ensureBodyAllowed(method, body);
 
   // Only normalize headers when provided; avoids per-request header allocations on hot paths
-  const headerTuples =
-    config.headers === undefined ? undefined : new Headers(config.headers).toTuples();
+  const headerTuples = config.headers === undefined ? undefined : new Headers(config.headers).toTuples();
 
   const requestOptions: RequestOptions = {
     url,
