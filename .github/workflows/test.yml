@@ -85,7 +85,6 @@ jobs:
           path: |
             ~/.cargo/registry/
             ~/.cargo/git/
-            rust/target/
           key: v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.target || 'native' }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.target || 'native' }}-cargo-
