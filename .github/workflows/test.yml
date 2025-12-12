@@ -103,9 +103,17 @@ jobs:
           RANLIB_x86_64_unknown_linux_musl: x86_64-unknown-linux-musl-ranlib
           RUSTFLAGS: -C target-feature=-crt-static
         run: npm run build:rust
+      
+      - name: Build Rust module (native)
+        if: runner.os == 'Windows' && !matrix.target
+        env:
+          RUST_BACKTRACE: "1"
+          CARGO_TERM_VERBOSE: "true"
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
+        run: npm run build:rust
 
       - name: Build Rust module (native)
-        if: "!matrix.target"
+        if: runner.os != 'Windows' && !matrix.target
         run: npm run build:rust
 
       - name: Debug - List built files
