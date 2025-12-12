@@ -45,6 +45,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.settings.target }}
+          
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ninja -y
+          ninja --version
 
       - name: Install musl cross toolchain (x86_64-linux-musl)
         if: matrix.settings.target == 'x86_64-unknown-linux-musl'
@@ -80,8 +87,14 @@ jobs:
           RUSTFLAGS: -C target-feature=-crt-static
         run: npm run build:rust
 
-      - name: Build native module (other targets)
-        if: matrix.settings.target != 'x86_64-unknown-linux-musl'
+      - name: Build native module (Windows)
+        if: runner.os == 'Windows'
+        env:
+          CMAKE_GENERATOR: Ninja
+        run: ${{ matrix.settings.build }}
+
+      - name: Build native module (other non-musl targets)
+        if: runner.os != 'Windows' && matrix.settings.target != 'x86_64-unknown-linux-musl'
         run: ${{ matrix.settings.build }}
 
       - name: Upload artifacts
