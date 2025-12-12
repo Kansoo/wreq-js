@@ -96,9 +96,17 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
+          cd rust
+          
           cargo fetch
 
           FILE=$(find ~/.cargo/registry/src -name "main.rs" | grep "boring-sys2" | grep "build")
+          
+          if [ -z "$FILE" ]; then
+            echo "Error: Could not find boring-sys2 build/main.rs to patch"
+            exit 1
+          fi
+          
           echo "Patching $FILE"
 
           sed -i 's/if config.target.ends_with("-msvc") {/if config.target.ends_with("-msvc") { println!("cargo:rustc-link-search=native={}\/build\/crypto\/Release", bssl_dir.display()); println!("cargo:rustc-link-search=native={}\/build\/ssl\/Release", bssl_dir.display());/' "$FILE"
@@ -125,6 +133,8 @@ jobs:
           CARGO_TARGET_DIR: rust/target
           DEBUG: "false"
           OPT_LEVEL: "3"
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL: 3
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: "false"
         run: npm run build:rust
 
       - name: Build Rust module (native)
