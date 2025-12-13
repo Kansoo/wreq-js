@@ -425,11 +425,11 @@ type ResponseType = "basic" | "cors" | "error" | "opaque" | "opaqueredirect";
 function cloneNativeResponse(payload: NativeResponse): NativeResponse {
   return {
     status: payload.status,
-    headers: { ...payload.headers },
+    headers: payload.headers.map(([name, value]): HeaderTuple => [name, value]),
     bodyHandle: payload.bodyHandle,
     bodyBytes: payload.bodyBytes,
     contentLength: payload.contentLength,
-    cookies: { ...payload.cookies },
+    cookies: payload.cookies.map(([name, value]): HeaderTuple => [name, value]),
     url: payload.url,
   };
 }
@@ -516,14 +516,15 @@ export class Response {
   readonly contentLength: number | null;
   readonly url: string;
   readonly type: ResponseType = "basic";
-  readonly cookies: Record<string, string>;
   bodyUsed = false;
 
   private readonly payload: NativeResponse;
   private readonly requestUrl: string;
   private redirectedMemo: boolean | undefined;
-  private readonly headersInit: Record<string, string>;
+  private readonly headersInit: HeaderTuple[];
   private headersInstance: Headers | null;
+  private readonly cookiesInit: HeaderTuple[];
+  private cookiesRecord: Record<string, string> | null;
   private inlineBody: Buffer | null;
   private bodySource: ReadableStream<Uint8Array> | null;
   private bodyStream: ReadableStream<Uint8Array> | null | undefined;
@@ -538,7 +539,8 @@ export class Response {
     this.headersInit = this.payload.headers;
     this.headersInstance = null;
     this.url = this.payload.url;
-    this.cookies = this.payload.cookies;
+    this.cookiesInit = this.payload.cookies;
+    this.cookiesRecord = null;
     this.contentLength = this.payload.contentLength ?? null;
     this.inlineBody = this.payload.bodyBytes ?? null;
 
@@ -586,6 +588,18 @@ export class Response {
       this.headersInstance = new Headers(this.headersInit);
     }
     return this.headersInstance;
+  }
+
+  get cookies(): Record<string, string> {
+    if (!this.cookiesRecord) {
+      const record: Record<string, string> = Object.create(null);
+      for (const [name, value] of this.cookiesInit) {
+        record[name] = value;
+      }
+      this.cookiesRecord = record;
+    }
+
+    return this.cookiesRecord;
   }
 
   get body(): ReadableStream<Uint8Array> | null {

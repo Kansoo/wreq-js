@@ -351,10 +351,10 @@ export interface NativeResponse {
   status: number;
 
   /**
-   * Response headers as key-value pairs.
+   * Response headers as [name, value] tuples.
    * Header names are normalized to lowercase.
    */
-  headers: Record<string, string>;
+  headers: HeaderTuple[];
 
   /**
    * Handle for streaming response body chunks from the native layer.
@@ -374,9 +374,9 @@ export interface NativeResponse {
   contentLength: number | null;
 
   /**
-   * Cookies set by the server as key-value pairs.
+   * Cookies set by the server as [name, value] tuples.
    */
-  cookies: Record<string, string>;
+  cookies: HeaderTuple[];
 
   /**
    * Final URL after following any redirects.

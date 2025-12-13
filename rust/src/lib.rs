@@ -289,20 +289,28 @@ fn response_to_js_object<'a, C: Context<'a>>(
     obj.set(cx, "url", url)?;
 
     // Headers
-    let headers_obj = cx.empty_object();
-    for (key, value) in &response.headers {
+    let headers_arr = cx.empty_array();
+    for (i, (key, value)) in response.headers.iter().enumerate() {
+        let entry = cx.empty_array();
+        let key_str = cx.string(key);
         let value_str = cx.string(value);
-        headers_obj.set(cx, key.as_str(), value_str)?;
+        entry.set(cx, 0, key_str)?;
+        entry.set(cx, 1, value_str)?;
+        headers_arr.set(cx, i as u32, entry)?;
     }
-    obj.set(cx, "headers", headers_obj)?;
+    obj.set(cx, "headers", headers_arr)?;
 
-    // Cookies
-    let cookies_obj = cx.empty_object();
-    for (key, value) in &response.cookies {
+    // Cookies (as array of [key, value] tuples)
+    let cookies_arr = cx.empty_array();
+    for (i, (key, value)) in response.cookies.iter().enumerate() {
+        let entry = cx.empty_array();
+        let key_str = cx.string(key);
         let value_str = cx.string(value);
-        cookies_obj.set(cx, key.as_str(), value_str)?;
+        entry.set(cx, 0, key_str)?;
+        entry.set(cx, 1, value_str)?;
+        cookies_arr.set(cx, i as u32, entry)?;
     }
-    obj.set(cx, "cookies", cookies_obj)?;
+    obj.set(cx, "cookies", cookies_arr)?;
 
     // Inline body bytes for small responses (avoids a second native round-trip)
     match response.body_bytes {
