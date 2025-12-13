@@ -15,8 +15,8 @@ import type {
   SessionHandle,
   WebSocketOptions,
   RequestInit as WreqRequestInit,
-} from "./types";
-import { RequestError } from "./types";
+} from "./types.js";
+import { RequestError } from "./types.js";
 
 interface NativeWebSocketOptions {
   url: string;

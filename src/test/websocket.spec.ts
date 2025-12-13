@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { before, describe, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { websocket } from "../wreq-js";
+import { websocket } from "../wreq-js.js";
 
 const WS_TEST_URL = process.env.WS_TEST_URL;
 
@@ -21,13 +21,13 @@ describe("WebSocket", () => {
     const ws = await websocket({
       url: WS_TEST_URL,
       browser: "chrome_142",
-      onMessage: (data) => {
+      onMessage: (data: string | Buffer) => {
         messages.push(data);
       },
       onClose: () => {
         isClosed = true;
       },
-      onError: (error) => {
+      onError: (error: string) => {
         console.error("WebSocket error:", error);
       },
     });
@@ -53,11 +53,11 @@ describe("WebSocket", () => {
     const ws = await websocket({
       url: WS_TEST_URL,
       browser: "chrome_142",
-      onMessage: (data) => {
+      onMessage: (data: string | Buffer) => {
         messages.push(data);
       },
       onClose: () => {},
-      onError: (error) => {
+      onError: (error: string) => {
         console.error("WebSocket error:", error);
       },
     });
@@ -103,14 +103,14 @@ describe("WebSocket", () => {
       websocket({
         url: WS_TEST_URL,
         browser: "chrome_142",
-        onMessage: (data) => ws1Messages.push(data),
+        onMessage: (data: string | Buffer) => ws1Messages.push(data),
         onClose: () => {},
         onError: () => {},
       }),
       websocket({
         url: WS_TEST_URL,
         browser: "firefox_139",
-        onMessage: (data) => ws2Messages.push(data),
+        onMessage: (data: string | Buffer) => ws2Messages.push(data),
         onClose: () => {},
         onError: () => {},
       }),

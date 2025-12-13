@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import { createSession, fetch as wreqFetch } from "../../wreq-js";
+import { createSession, fetch as wreqFetch } from "../../wreq-js.js";
 
 // Self-signed certificate test hosts
 const SELF_SIGNED_HOST = "https://self-signed.badssl.com/";

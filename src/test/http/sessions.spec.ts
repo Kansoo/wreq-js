@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import type { Session } from "../../wreq-js";
-import { createSession, RequestError, withSession, fetch as wreqFetch } from "../../wreq-js";
-import { httpUrl } from "../helpers/http";
+import type { Session } from "../../wreq-js.js";
+import { createSession, RequestError, withSession, fetch as wreqFetch } from "../../wreq-js.js";
+import { httpUrl } from "../helpers/http.js";
 
 describe("HTTP sessions", () => {
   test("isolates cookies for default fetch calls", async () => {
@@ -62,7 +62,7 @@ describe("HTTP sessions", () => {
   test("withSession helper disposes sessions automatically", async () => {
     let capturedSession: Session | undefined;
 
-    await withSession(async (session) => {
+    await withSession(async (session: Session) => {
       capturedSession = session;
       const response = await session.fetch(httpUrl("/get"), { timeout: 5000 });
       assert.strictEqual(response.status, 200);

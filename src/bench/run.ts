@@ -2,8 +2,8 @@ import { writeFile } from "node:fs/promises";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import process from "node:process";
-import { createSession, fetch as wreqFetch } from "../wreq-js";
-import { startLocalBenchServer } from "./local-bench-server";
+import { createSession, fetch as wreqFetch } from "../wreq-js.js";
+import { startLocalBenchServer } from "./local-bench-server.js";
 
 type ScenarioResult = {
   name: string;

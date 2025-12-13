@@ -2,8 +2,8 @@ import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { describe, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { createSession, fetch as wreqFetch } from "../../wreq-js";
-import { httpUrl } from "../helpers/http";
+import { createSession, fetch as wreqFetch } from "../../wreq-js.js";
+import { httpUrl } from "../helpers/http.js";
 
 const isLocalHttpBase =
   (process.env.HTTP_TEST_BASE_URL ?? "").includes("127.0.0.1") ||

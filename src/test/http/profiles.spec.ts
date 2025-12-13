@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import type { BrowserProfile } from "../../wreq-js";
-import { getProfiles, RequestError, fetch as wreqFetch } from "../../wreq-js";
-import { httpUrl } from "../helpers/http";
+import type { BrowserProfile } from "../../wreq-js.js";
+import { getProfiles, RequestError, fetch as wreqFetch } from "../../wreq-js.js";
+import { httpUrl } from "../helpers/http.js";
 
 describe("HTTP profiles", () => {
   test("returns available browser profiles", () => {

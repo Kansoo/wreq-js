@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import { Headers, fetch as wreqFetch } from "../../wreq-js";
-import { headerIndex, httpUrl } from "../helpers/http";
+import { Headers, fetch as wreqFetch } from "../../wreq-js.js";
+import { headerIndex, httpUrl } from "../helpers/http.js";
 
 describe("HTTP headers", () => {
   test("disables default headers when requested", async () => {

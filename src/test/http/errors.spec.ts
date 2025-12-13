@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, test } from "node:test";
-import { fetch as wreqFetch } from "../../wreq-js";
-import { httpUrl } from "../helpers/http";
+import { fetch as wreqFetch } from "../../wreq-js.js";
+import { httpUrl } from "../helpers/http.js";
 
 describe("HTTP errors", () => {
   test("handles timeout errors", async () => {

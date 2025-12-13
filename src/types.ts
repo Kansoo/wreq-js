@@ -1,5 +1,5 @@
 // Import and re-export the auto-generated BrowserProfile and EmulationOS types
-import type { BrowserProfile, EmulationOS } from "./generated-types";
+import type { BrowserProfile, EmulationOS } from "./generated-types.js";
 export type { BrowserProfile, EmulationOS };
 
 /**

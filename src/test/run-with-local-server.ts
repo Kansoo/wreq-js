@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
-import { startLocalTestServer } from "./helpers/local-test-server";
+import { startLocalTestServer } from "./helpers/local-test-server.js";
 
 const testDir = __dirname;
 const projectRoot = resolve(testDir, "..", "..");

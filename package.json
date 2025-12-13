@@ -2,19 +2,20 @@
   "name": "wreq-js",
   "version": "1.4.0",
   "description": "High-performance HTTP client for Node.JS with real-browser TLS and HTTP/2 fingerprints, powered by Rust",
-  "main": "dist/wreq-js.js",
-  "types": "dist/wreq-js.d.ts",
+  "type": "module",
+  "main": "./dist/cjs/wreq-js.cjs",
+  "types": "./dist/types/wreq-js.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/wreq-js.d.ts",
-      "require": "./dist/wreq-js.js",
-      "import": "./dist/wreq-js.js"
+      "types": "./dist/types/wreq-js.d.ts",
+      "require": "./dist/cjs/wreq-js.cjs",
+      "import": "./dist/esm/wreq-js.js"
     }
   },
   "scripts": {
     "build": "npm run build:rust && npm run build:ts",
     "build:rust": "napi build --platform --release --manifest-path rust/Cargo.toml",
-    "build:ts": "npm run clean:dist && tsc",
+    "build:ts": "npm run clean:dist && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json",
     "clean:dist": "rimraf dist",
     "artifacts": "napi artifacts",
     "clean": "rimraf dist rust/target rust/*.node",
