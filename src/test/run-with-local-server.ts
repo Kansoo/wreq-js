@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { startLocalTestServer } from "./helpers/local-test-server.js";
 
-const testDir = __dirname;
+const testDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(testDir, "..", "..");
 const httpTestDir = resolve(testDir, "http");
 const httpTestFiles = existsSync(httpTestDir)

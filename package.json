@@ -16,7 +16,7 @@
     "build": "npm run build:rust && npm run build:ts",
     "build:rust": "napi build --platform --release --manifest-path rust/Cargo.toml",
     "build:ts": "tsup",
-    
+
     "artifacts": "napi artifacts",
 
     "test": "npm run build:rust && tsx src/test/run-with-local-server.ts",

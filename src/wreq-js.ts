@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { STATUS_CODES } from "node:http";
+import { createRequire } from "node:module";
 import { ReadableStream } from "node:stream/web";
 import type {
   BodyInit,
@@ -17,7 +18,6 @@ import type {
   RequestInit as WreqRequestInit,
 } from "./types.js";
 import { RequestError } from "./types.js";
-import { createRequire } from "node:module";
 
 interface NativeWebSocketOptions {
   url: string;
@@ -81,19 +81,14 @@ function detectLibc(): "gnu" | "musl" | undefined {
 }
 
 const require =
-  typeof import.meta !== "undefined" && import.meta.url
-    ? createRequire(import.meta.url)
-    : createRequire(__filename);
+  typeof import.meta !== "undefined" && import.meta.url ? createRequire(import.meta.url) : createRequire(__filename);
 
 function loadNativeBinding() {
   const platform = process.platform;
   const arch = process.arch;
   const libc = detectLibc();
 
-  const platformArchMap: Record<
-    string,
-    Record<string, string | Record<"gnu" | "musl", string>>
-  > = {
+  const platformArchMap: Record<string, Record<string, string | Record<"gnu" | "musl", string>>> = {
     darwin: { x64: "darwin-x64", arm64: "darwin-arm64" },
     linux: {
       x64: { gnu: "linux-x64-gnu", musl: "linux-x64-musl" },
@@ -520,13 +515,13 @@ export class Response {
   readonly ok: boolean;
   readonly contentLength: number | null;
   readonly url: string;
-  readonly redirected: boolean;
   readonly type: ResponseType = "basic";
   readonly cookies: Record<string, string>;
   bodyUsed = false;
 
   private readonly payload: NativeResponse;
   private readonly requestUrl: string;
+  private redirectedMemo: boolean | undefined;
   private readonly headersInit: Record<string, string>;
   private headersInstance: Headers | null;
   private inlineBody: Buffer | null;
@@ -543,7 +538,6 @@ export class Response {
     this.headersInit = this.payload.headers;
     this.headersInstance = null;
     this.url = this.payload.url;
-    this.redirected = this.url !== requestUrl;
     this.cookies = this.payload.cookies;
     this.contentLength = this.payload.contentLength ?? null;
     this.inlineBody = this.payload.bodyBytes ?? null;
@@ -568,6 +562,21 @@ export class Response {
     this.bodyStream = undefined;
   }
 
+  get redirected(): boolean {
+    if (this.redirectedMemo !== undefined) {
+      return this.redirectedMemo;
+    }
+
+    if (this.url === this.requestUrl) {
+      this.redirectedMemo = false;
+      return false;
+    }
+
+    const normalizedRequestUrl = normalizeUrlForComparison(this.requestUrl);
+    this.redirectedMemo = normalizedRequestUrl ? this.url !== normalizedRequestUrl : true;
+    return this.redirectedMemo;
+  }
+
   get statusText(): string {
     return STATUS_CODES[this.status] ?? "";
   }
@@ -585,7 +594,7 @@ export class Response {
       this.inlineBody = null;
       this.bodySource = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new Uint8Array(bytes));
+          controller.enqueue(bytes);
           controller.close();
         },
       });
@@ -749,6 +758,11 @@ export class Session implements SessionHandle {
     return { ...this.defaults };
   }
 
+  /** @internal */
+  _defaultsRef(): SessionDefaults {
+    return this.defaults;
+  }
+
   private enforceBrowser(browser?: BrowserProfile): BrowserProfile {
     const resolved = browser ?? this.defaults.browser;
 
@@ -791,20 +805,23 @@ export class Session implements SessionHandle {
     config.session = this;
     config.cookieMode = "session";
 
-    config.browser = this.enforceBrowser(config.browser);
-    config.os = this.enforceOs(config.os);
+    // Only enforce invariants when the caller attempts to override them.
+    // This avoids re-validating session defaults on every request.
+    if (config.browser !== undefined) {
+      this.enforceBrowser(config.browser);
+    }
+    if (config.os !== undefined) {
+      this.enforceOs(config.os);
+    }
 
-    const proxy = this.enforceProxy(config.proxy);
-    if (proxy !== undefined || config.proxy !== undefined) {
+    // Same idea for proxy: only touch config when the caller provided a value.
+    if (Object.hasOwn(config, "proxy")) {
+      const proxy = this.enforceProxy(config.proxy);
       if (proxy === undefined) {
         delete config.proxy;
       } else {
         config.proxy = proxy;
       }
-    }
-
-    if (config.timeout === undefined && this.defaults.timeout !== undefined) {
-      config.timeout = this.defaults.timeout;
     }
 
     return fetch(input, config);
@@ -856,7 +873,7 @@ function resolveSessionContext(config: WreqRequestInit): SessionResolution {
       sessionId: sessionCandidate.id,
       cookieMode: "session",
       dropAfterRequest: false,
-      defaults: sessionCandidate.getDefaults(),
+      defaults: sessionCandidate._defaultsRef(),
     };
   }
 
@@ -962,17 +979,21 @@ function setupAbort(signal: AbortSignal | null | undefined, cancelNative: () => 
   return { promise, cleanup };
 }
 
-function normalizeUrlInput(input: string | URL): string {
-  const value = typeof input === "string" ? input : input.toString();
+function coerceUrlInput(input: string | URL): string {
+  const value = typeof input === "string" ? input.trim() : input.href;
 
   if (!value) {
     throw new RequestError("URL is required");
   }
 
+  return value;
+}
+
+function normalizeUrlForComparison(value: string): string | null {
   try {
     return new URL(value).toString();
   } catch {
-    throw new RequestError(`Invalid URL: ${value}`);
+    return null;
   }
 }
 
@@ -1158,7 +1179,7 @@ async function dispatchRequest(
  * ```
  */
 export async function fetch(input: string | URL, init?: WreqRequestInit): Promise<Response> {
-  const url = normalizeUrlInput(input);
+  const url = coerceUrlInput(input);
   const config = init ?? {};
   const sessionContext = resolveSessionContext(config);
   const sessionDefaults = sessionContext.defaults;
