@@ -5,7 +5,6 @@ use futures_util::{Stream, StreamExt};
 use indexmap::IndexMap;
 use moka::sync::Cache;
 use once_cell::sync::Lazy;
-use serde_json::Value;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -81,37 +80,41 @@ pub struct Response {
 struct SessionConfig {
     emulation: Emulation,
     emulation_os: EmulationOS,
-    label: String,
     proxy: Option<String>,
     insecure: bool,
 }
 
 impl SessionConfig {
+    #[inline]
     fn from_request(options: &RequestOptions) -> Self {
         Self {
             emulation: options.emulation,
             emulation_os: options.emulation_os,
-            label: emulation_label(&options.emulation, &options.emulation_os),
             proxy: options.proxy.clone(),
             insecure: options.insecure,
         }
     }
 
+    #[inline]
     fn new(emulation: Emulation, emulation_os: EmulationOS, proxy: Option<String>, insecure: bool) -> Self {
-        let label = emulation_label(&emulation, &emulation_os);
         Self {
             emulation,
             emulation_os,
-            label,
             proxy,
             insecure,
         }
     }
 
+    #[inline]
     fn matches(&self, other: &SessionConfig) -> bool {
-        // Sessions must match on insecure setting to prevent reusing a client
-        // with different certificate verification settings (security critical)
-        self.label == other.label && self.proxy == other.proxy && self.insecure == other.insecure
+        // Compare enum values directly (cheap integer comparisons) instead of
+        // serializing to strings. Sessions must also match on insecure setting
+        // to prevent reusing a client with different certificate verification
+        // settings (security critical).
+        self.emulation == other.emulation
+            && self.emulation_os == other.emulation_os
+            && self.proxy == other.proxy
+            && self.insecure == other.insecure
     }
 }
 
@@ -403,20 +406,6 @@ fn build_client(config: &SessionConfig) -> Result<HttpClient> {
     client_builder
         .build()
         .context("Failed to build HTTP client")
-}
-
-fn emulation_label(emulation: &Emulation, os: &EmulationOS) -> String {
-    let browser = match serde_json::to_value(emulation) {
-        Ok(Value::String(label)) => label,
-        _ => "chrome_142".to_string(),
-    };
-
-    let os_label = match serde_json::to_value(os) {
-        Ok(Value::String(label)) => label,
-        _ => "macos".to_string(),
-    };
-
-    format!("{}@{}", browser, os_label)
 }
 
 fn response_allows_body(status: u16, method: &str) -> bool {
