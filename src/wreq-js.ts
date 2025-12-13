@@ -763,68 +763,9 @@ export class Session implements SessionHandle {
     return this.defaults;
   }
 
-  private enforceBrowser(browser?: BrowserProfile): BrowserProfile {
-    const resolved = browser ?? this.defaults.browser;
-
-    if (resolved !== this.defaults.browser) {
-      throw new RequestError("Session browser cannot be changed after creation");
-    }
-
-    return resolved;
-  }
-
-  private enforceOs(os?: EmulationOS): EmulationOS {
-    const resolved = os ?? this.defaults.os;
-
-    if (resolved !== this.defaults.os) {
-      throw new RequestError("Session operating system cannot be changed after creation");
-    }
-
-    return resolved;
-  }
-
-  private enforceProxy(proxy?: string): string | undefined {
-    if (proxy === undefined) {
-      return this.defaults.proxy;
-    }
-
-    if ((this.defaults.proxy ?? null) !== (proxy ?? null)) {
-      throw new RequestError("Session proxy cannot be changed after creation");
-    }
-
-    return proxy;
-  }
-
   async fetch(input: string | URL, init?: WreqRequestInit): Promise<Response> {
     this.ensureActive();
-
-    const config: WreqRequestInit = {};
-    if (init) {
-      Object.assign(config, init);
-    }
-    config.session = this;
-    config.cookieMode = "session";
-
-    // Only enforce invariants when the caller attempts to override them.
-    // This avoids re-validating session defaults on every request.
-    if (config.browser !== undefined) {
-      this.enforceBrowser(config.browser);
-    }
-    if (config.os !== undefined) {
-      this.enforceOs(config.os);
-    }
-
-    // Same idea for proxy: only touch config when the caller provided a value.
-    if (Object.hasOwn(config, "proxy")) {
-      const proxy = this.enforceProxy(config.proxy);
-      if (proxy === undefined) {
-        delete config.proxy;
-      } else {
-        config.proxy = proxy;
-      }
-    }
-
-    return fetch(input, config);
+    return fetchWithSession(this, input, init);
   }
 
   async clearCookies(): Promise<void> {
@@ -1084,6 +1025,80 @@ function validateTimeout(timeout?: number): void {
   if (timeout <= 0) {
     throw new RequestError("Timeout must be greater than 0");
   }
+}
+
+async function fetchWithSession(session: Session, input: string | URL, init?: WreqRequestInit): Promise<Response> {
+  const providedSessionId = typeof init?.sessionId === "string" ? init.sessionId.trim() : undefined;
+  if (providedSessionId) {
+    throw new RequestError("Provide either `session` or `sessionId`, not both.");
+  }
+
+  const url = coerceUrlInput(input);
+  const method = ensureMethod(init?.method);
+  const body = serializeBody(init?.body ?? null);
+
+  ensureBodyAllowed(method, body);
+  validateRedirectMode(init?.redirect);
+
+  const defaults = session._defaultsRef();
+
+  if (init?.browser != null && init.browser !== defaults.browser) {
+    throw new RequestError("Session browser cannot be changed after creation");
+  }
+  if (init?.os != null && init.os !== defaults.os) {
+    throw new RequestError("Session operating system cannot be changed after creation");
+  }
+
+  const initHasProxy = Boolean(init) && Object.hasOwn(init as object, "proxy");
+  const requestedProxy = initHasProxy ? (init as { proxy?: string | null }).proxy : undefined;
+  if (initHasProxy && requestedProxy !== undefined && (defaults.proxy ?? null) !== (requestedProxy ?? null)) {
+    throw new RequestError("Session proxy cannot be changed after creation");
+  }
+
+  const timeout = init?.timeout ?? defaults.timeout;
+  if (Boolean(init) && (init as { timeout?: number | null }).timeout !== undefined) {
+    validateTimeout(timeout);
+  }
+
+  const insecure = init?.insecure ?? defaults.insecure;
+
+  const headerTuples = init?.headers === undefined ? undefined : headersToTuples(init.headers);
+
+  const requestOptions: RequestOptions = {
+    url,
+    method,
+    browser: defaults.browser,
+    os: defaults.os,
+    sessionId: session.id,
+    ephemeral: false,
+  };
+
+  if (body !== undefined) {
+    requestOptions.body = body;
+  }
+
+  const proxy = requestedProxy ?? defaults.proxy;
+  if (proxy !== undefined) {
+    requestOptions.proxy = proxy;
+  }
+
+  if (timeout !== undefined) {
+    requestOptions.timeout = timeout;
+  }
+  if (init?.redirect !== undefined) {
+    requestOptions.redirect = init.redirect;
+  }
+  if (init?.disableDefaultHeaders !== undefined) {
+    requestOptions.disableDefaultHeaders = init.disableDefaultHeaders;
+  }
+  if (insecure !== undefined) {
+    requestOptions.insecure = insecure;
+  }
+  if (headerTuples && headerTuples.length > 0) {
+    requestOptions.headers = headerTuples;
+  }
+
+  return dispatchRequest(requestOptions, url, init?.signal ?? null);
 }
 
 async function dispatchRequest(
