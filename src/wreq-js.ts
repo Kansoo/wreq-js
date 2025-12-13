@@ -38,7 +38,7 @@ interface NativeSessionOptions {
 }
 
 let nativeBinding: {
-  request: (options: RequestOptions, requestId: number) => Promise<NativeResponse>;
+  request: (options: RequestOptions, requestId: number, enableCancellation?: boolean) => Promise<NativeResponse>;
   cancelRequest: (requestId: number) => void;
   readBodyChunk: (handleId: number) => Promise<Buffer | null>;
   readBodyAll: (handleId: number) => Promise<Buffer>;
@@ -1126,7 +1126,7 @@ async function dispatchRequest(
     let payload: NativeResponse;
 
     try {
-      payload = (await nativeBinding.request(options, requestId)) as NativeResponse;
+      payload = (await nativeBinding.request(options, requestId, false)) as NativeResponse;
     } catch (error) {
       if (error instanceof RequestError) {
         throw error;
@@ -1153,7 +1153,7 @@ async function dispatchRequest(
     throw createAbortError(signal.reason);
   }
 
-  const pending = Promise.race([nativeBinding.request(options, requestId), abortHandler.promise]);
+  const pending = Promise.race([nativeBinding.request(options, requestId, true), abortHandler.promise]);
 
   let payload: NativeResponse;
 

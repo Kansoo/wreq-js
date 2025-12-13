@@ -353,15 +353,39 @@ fn request(mut cx: FunctionContext) -> JsResult<JsPromise> {
     // Get the options object
     let options_obj = cx.argument::<JsObject>(0)?;
     let request_id = cx.argument::<JsNumber>(1)?.value(&mut cx) as u64;
+    let cancellable = cx
+        .argument_opt(2)
+        .and_then(|value| value.downcast::<JsBoolean, _>(&mut cx).ok())
+        .map(|b| b.value(&mut cx))
+        .unwrap_or(true);
 
     // Convert JS object to Rust struct
     let options = js_object_to_request_options(&mut cx, options_obj)?;
-    let token = CancellationToken::new();
-    REQUEST_CANCELLATIONS.insert(request_id, token.clone());
 
     // Create a promise
     let (deferred, promise) = cx.promise();
     let settle_channel = cx.channel();
+
+    if !cancellable {
+        HTTP_RUNTIME.spawn(async move {
+            let result = make_request(options).await;
+
+            // Send result back to JS
+            deferred.settle_with(&settle_channel, move |mut cx| match result {
+                Ok(response) => response_to_js_object(&mut cx, response),
+                Err(e) => {
+                    // Format error with full chain for better debugging
+                    let error_msg = format!("{:#}", e);
+                    cx.throw_error(error_msg)
+                }
+            });
+        });
+
+        return Ok(promise);
+    }
+
+    let token = CancellationToken::new();
+    REQUEST_CANCELLATIONS.insert(request_id, token.clone());
 
     HTTP_RUNTIME.spawn(async move {
         let result = tokio::select! {
