@@ -290,16 +290,16 @@ fn response_to_js_object<'a, C: Context<'a>>(
 
     // Headers
     let headers_obj = cx.empty_object();
-    for (key, value) in response.headers {
-        let value_str = cx.string(&value);
+    for (key, value) in &response.headers {
+        let value_str = cx.string(value);
         headers_obj.set(cx, key.as_str(), value_str)?;
     }
     obj.set(cx, "headers", headers_obj)?;
 
     // Cookies
     let cookies_obj = cx.empty_object();
-    for (key, value) in response.cookies {
-        let value_str = cx.string(&value);
+    for (key, value) in &response.cookies {
+        let value_str = cx.string(value);
         cookies_obj.set(cx, key.as_str(), value_str)?;
     }
     obj.set(cx, "cookies", cookies_obj)?;

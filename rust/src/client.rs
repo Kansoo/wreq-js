@@ -68,10 +68,10 @@ pub struct RequestOptions {
 #[derive(Debug, Clone)]
 pub struct Response {
     pub status: u16,
-    pub headers: IndexMap<String, String>,
+    pub headers: Vec<(String, String)>,
     pub body_handle: Option<u64>,
     pub body_bytes: Option<Bytes>,
-    pub cookies: IndexMap<String, String>,
+    pub cookies: Vec<(String, String)>,
     pub url: String,
     pub content_length: Option<u64>,
 }
@@ -341,19 +341,20 @@ async fn make_request_inner(options: RequestOptions) -> Result<Response> {
     let status = response.status().as_u16();
     let final_url = response.uri().to_string();
 
-    // Extract headers
-    let mut response_headers = IndexMap::new();
-    for (key, value) in response.headers() {
+    // Extract headers into a pre-allocated Vec (avoids IndexMap hashing overhead)
+    let raw_headers = response.headers();
+    let mut response_headers = Vec::with_capacity(raw_headers.len());
+    for (key, value) in raw_headers {
         if let Ok(value_str) = value.to_str() {
-            response_headers.insert(key.to_string(), value_str.to_string());
+            response_headers.push((key.as_str().to_owned(), value_str.to_owned()));
         }
     }
 
-    // Extract cookies
-    let mut cookies = IndexMap::new();
-    for cookie in response.cookies() {
-        cookies.insert(cookie.name().to_string(), cookie.value().to_string());
-    }
+    // Extract cookies into a Vec
+    let cookies: Vec<(String, String)> = response
+        .cookies()
+        .map(|c| (c.name().to_owned(), c.value().to_owned()))
+        .collect();
 
     let mut content_length = response.content_length();
     let allows_body = response_allows_body(status, method_upper.as_str());
