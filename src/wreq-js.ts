@@ -473,7 +473,6 @@ function wrapBodyStream(source: ReadableStream<Uint8Array>, onFirstUse: () => vo
 
 export class Response {
   readonly status: number;
-  readonly statusText: string;
   readonly ok: boolean;
   readonly contentLength: number | null;
   readonly url: string;
@@ -496,7 +495,6 @@ export class Response {
     this.payload = payload;
     this.requestUrl = requestUrl;
     this.status = this.payload.status;
-    this.statusText = STATUS_CODES[this.payload.status] ?? "";
     this.ok = this.status >= 200 && this.status < 300;
     this.headersInit = this.payload.headers;
     this.headersInstance = null;
@@ -524,6 +522,10 @@ export class Response {
     }
 
     this.bodyStream = undefined;
+  }
+
+  get statusText(): string {
+    return STATUS_CODES[this.status] ?? "";
   }
 
   get headers(): Headers {
