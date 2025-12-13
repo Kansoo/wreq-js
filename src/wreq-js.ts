@@ -1484,7 +1484,7 @@ export type {
   RequestOptions,
   SessionHandle,
   WebSocketOptions,
-} from "./types";
+} from "./types.js";
 
 export { RequestError };
 
