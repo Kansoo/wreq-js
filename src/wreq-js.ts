@@ -17,6 +17,7 @@ import type {
   RequestInit as WreqRequestInit,
 } from "./types.js";
 import { RequestError } from "./types.js";
+import { createRequire } from "node:module";
 
 interface NativeWebSocketOptions {
   url: string;
@@ -79,28 +80,26 @@ function detectLibc(): "gnu" | "musl" | undefined {
   }
 }
 
+const require =
+  typeof import.meta !== "undefined" && import.meta.url
+    ? createRequire(import.meta.url)
+    : createRequire(__filename);
+
 function loadNativeBinding() {
   const platform = process.platform;
   const arch = process.arch;
   const libc = detectLibc();
 
-  // Map Node.js platform/arch to Rust target triple suffixes
-  // napi-rs creates files like: wreq-js.linux-x64-gnu.node
-  const platformArchMap: Record<string, Record<string, string | Record<"gnu" | "musl", string>>> = {
-    darwin: {
-      x64: "darwin-x64",
-      arm64: "darwin-arm64",
-    },
+  const platformArchMap: Record<
+    string,
+    Record<string, string | Record<"gnu" | "musl", string>>
+  > = {
+    darwin: { x64: "darwin-x64", arm64: "darwin-arm64" },
     linux: {
-      x64: {
-        gnu: "linux-x64-gnu",
-        musl: "linux-x64-musl",
-      },
+      x64: { gnu: "linux-x64-gnu", musl: "linux-x64-musl" },
       arm64: "linux-arm64-gnu",
     },
-    win32: {
-      x64: "win32-x64-msvc",
-    },
+    win32: { x64: "win32-x64-msvc" },
   };
 
   const platformArchMapEntry = platformArchMap[platform]?.[arch];
@@ -117,13 +116,11 @@ function loadNativeBinding() {
     );
   }
 
-  // Try to load platform-specific binary
   const binaryName = `wreq-js.${platformArch}.node`;
 
   try {
     return require(`../rust/${binaryName}`);
   } catch {
-    // Fallback to wreq-js.node (for local development)
     try {
       return require("../rust/wreq-js.node");
     } catch {
