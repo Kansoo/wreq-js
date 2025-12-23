@@ -16,24 +16,19 @@
     "build": "npm run build:rust && npm run build:ts",
     "build:rust": "napi build --platform --release --manifest-path rust/Cargo.toml",
     "build:ts": "tsup",
-
     "artifacts": "napi artifacts",
-
     "test": "npm run build && tsx src/test/run-with-local-server.ts",
     "test:coverage": "npm run build && c8 --reporter=html --reporter=text --reporter=lcov tsx src/test/run-with-local-server.ts",
     "test:coverage:ci": "npm run build && c8 --reporter=text-summary --reporter=lcov tsx src/test/run-with-local-server.ts",
-
     "bench": "npm run build:rust && tsx --expose-gc src/bench/run.ts",
     "bench:run": "tsx --expose-gc src/bench/run.ts",
     "bench:quick": "npm run build:rust && tsx --expose-gc src/bench/run.ts --scenario wreq.session.get.small",
-
     "check": "biome check .",
     "check:fix": "biome check --write .",
-
     "clean": "rimraf dist rust/target rust/*.node",
     "clean:dist": "rimraf dist",
-
-    "ci:biome": "biome ci ."
+    "ci:biome": "biome ci .",
+    "prepare": "husky"
   },
   "keywords": [
     "browser-emulation",
@@ -73,6 +68,7 @@
     "@napi-rs/cli": "^3.5.0",
     "@types/node": "^24.10.4",
     "c8": "^10.1.3",
+    "husky": "^9.1.7",
     "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
