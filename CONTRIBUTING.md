@@ -38,9 +38,13 @@ Use descriptive branch names:
 
 ### Code Style
 
-Use Prettier for formatting:
+Use Biome for formatting and linting:
 ```bash
-npm run format
+# Check formatting and linting
+npm run check
+
+# Auto-fix formatting and linting issues
+npm run check:fix
 ```
 
 ## 📝 Commit Message Guidelines
