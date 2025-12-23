@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { before, describe, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { websocket } from "../wreq-js.js";
+import { RequestError, websocket } from "../wreq-js.js";
 
 const WS_TEST_URL = process.env.WS_TEST_URL;
 
@@ -145,5 +145,24 @@ describe("WebSocket", () => {
 
     // Close both connections
     await Promise.all([ws1.close(), ws2.close()]);
+  });
+
+  test("rejects missing url or onMessage", async () => {
+    await assert.rejects(
+      websocket({ url: "", browser: "chrome_142", onMessage: () => {} }),
+      (error: unknown) => error instanceof RequestError && /URL is required/.test(error.message),
+    );
+
+    await assert.rejects(
+      websocket({ url: WS_TEST_URL, browser: "chrome_142" } as never),
+      (error: unknown) => error instanceof RequestError && /onMessage callback is required/.test(error.message),
+    );
+  });
+
+  test("wraps connection errors as RequestError", { timeout: 5000 }, async () => {
+    await assert.rejects(
+      websocket({ url: "ws://127.0.0.1:1", browser: "chrome_142", onMessage: () => {} }),
+      (error: unknown) => error instanceof RequestError,
+    );
   });
 });
