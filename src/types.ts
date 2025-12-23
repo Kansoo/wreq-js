@@ -1,5 +1,6 @@
 // Import and re-export the auto-generated BrowserProfile and EmulationOS types
 import type { BrowserProfile, EmulationOS } from "./generated-types.js";
+import type { Session } from "./wreq-js.js";
 export type { BrowserProfile, EmulationOS };
 
 /**
@@ -10,8 +11,8 @@ export type { BrowserProfile, EmulationOS };
 export type CookieMode = "session" | "ephemeral";
 
 /**
- * Minimal handle implemented by {@link Session}. Exposed so {@link RequestInit.session}
- * can accept either a Session instance or a compatible object.
+ * Minimal handle implemented by {@link Session}. Exposed for integrations
+ * that only need to carry a session id.
  */
 export interface SessionHandle {
   readonly id: string;
@@ -150,7 +151,7 @@ export interface RequestInit {
    * Session instance to bind this request to. When provided, {@link cookieMode}
    * automatically behaves like `"session"`.
    */
-  session?: SessionHandle;
+  session?: Session;
 
   /**
    * Identifier of an existing session created elsewhere (e.g., via {@link createSession}).
