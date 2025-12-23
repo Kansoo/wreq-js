@@ -1,57 +1,16 @@
 name: 🏗️ Build and Publish Package
 
 on:
-  pull_request:
-  push:
-    branches:
-      - master
   release:
     types: [published]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build_pr:
-    name: Build (PR smoke) - x86_64-unknown-linux-gnu
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          architecture: x64
-          cache: npm
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
-
-      - name: Cache Rust builds
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust -> target
-          shared-key: x86_64-unknown-linux-gnu
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build native module
-        run: npm run build:rust -- --target x86_64-unknown-linux-gnu
-
-      - name: Smoke test native addon
-        env:
-          WREQ_TARGET: x86_64-unknown-linux-gnu
-        run: node scripts/smoke-native.cjs
-
   build_full:
-    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
