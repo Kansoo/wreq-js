@@ -524,7 +524,7 @@ export class Response {
   private readonly headersInit: HeaderTuple[];
   private headersInstance: Headers | null;
   private readonly cookiesInit: HeaderTuple[];
-  private cookiesRecord: Record<string, string> | null;
+  private cookiesRecord: Record<string, string | string[]> | null;
   private inlineBody: Buffer | null;
   private bodySource: ReadableStream<Uint8Array> | null;
   private bodyStream: ReadableStream<Uint8Array> | null | undefined;
@@ -590,11 +590,18 @@ export class Response {
     return this.headersInstance;
   }
 
-  get cookies(): Record<string, string> {
+  get cookies(): Record<string, string | string[]> {
     if (!this.cookiesRecord) {
-      const record: Record<string, string> = Object.create(null);
+      const record: Record<string, string | string[]> = Object.create(null);
       for (const [name, value] of this.cookiesInit) {
-        record[name] = value;
+        const existing = record[name];
+        if (existing === undefined) {
+          record[name] = value;
+        } else if (Array.isArray(existing)) {
+          existing.push(value);
+        } else {
+          record[name] = [existing, value];
+        }
       }
       this.cookiesRecord = record;
     }
