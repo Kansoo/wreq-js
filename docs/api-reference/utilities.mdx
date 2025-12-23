@@ -1,0 +1,147 @@
+---
+title: Utilities
+description: "Utility functions for browser profiles and configuration."
+---
+
+## getProfiles()
+
+Get a list of all available browser fingerprint profiles.
+
+### Signature
+
+```typescript
+function getProfiles(): BrowserProfile[]
+```
+
+### Returns
+
+Array of profile names that can be used with the `browser` option.
+
+### Example
+
+```typescript
+import { getProfiles } from 'wreq-js';
+
+const profiles = getProfiles();
+console.log(profiles);
+// ['chrome_142', 'chrome_141', 'firefox_139', 'safari_18', 'edge_120', ...]
+```
+
+### Using a random profile
+
+```typescript
+import { fetch, getProfiles } from 'wreq-js';
+
+const profiles = getProfiles();
+const randomProfile = profiles[Math.floor(Math.random() * profiles.length)];
+
+const response = await fetch('https://example.com', {
+  browser: randomProfile,
+});
+```
+
+---
+
+## getOperatingSystems()
+
+Get a list of all available operating systems for emulation.
+
+### Signature
+
+```typescript
+function getOperatingSystems(): EmulationOS[]
+```
+
+### Returns
+
+Array of OS names that can be used with the `os` option.
+
+### Example
+
+```typescript
+import { getOperatingSystems } from 'wreq-js';
+
+const systems = getOperatingSystems();
+console.log(systems);
+// ['windows', 'macos', 'linux', 'android', 'ios']
+```
+
+### Combining browser and OS
+
+```typescript
+import { fetch, getProfiles, getOperatingSystems } from 'wreq-js';
+
+// Chrome on Windows
+const response = await fetch('https://example.com', {
+  browser: 'chrome_142',
+  os: 'windows',
+});
+
+// Safari on iOS
+const mobileResponse = await fetch('https://example.com', {
+  browser: 'safari_18',
+  os: 'ios',
+});
+```
+
+---
+
+## Headers
+
+The `Headers` class for working with HTTP headers.
+
+### Constructor
+
+```typescript
+new Headers(init?: HeadersInit)
+```
+
+### Methods
+
+- `append(name, value)` — Add a header value
+- `delete(name)` — Remove a header
+- `get(name)` — Get a header value
+- `has(name)` — Check if header exists
+- `set(name, value)` — Set a header value
+- `entries()` — Iterate over header entries
+- `keys()` — Iterate over header names
+- `values()` — Iterate over header values
+
+### Example
+
+```typescript
+import { fetch, Headers } from 'wreq-js';
+
+const headers = new Headers();
+headers.set('Authorization', 'Bearer token');
+headers.set('Content-Type', 'application/json');
+
+const response = await fetch('https://api.example.com', {
+  browser: 'chrome_142',
+  headers,
+});
+```
+
+---
+
+## Request
+## Response
+
+The `Response` class representing HTTP responses.
+
+### Properties
+
+- `status`: HTTP status code
+- `statusText`: HTTP status text
+- `headers`: response headers
+- `ok`: `true` if status is 200-299
+- `url`: final URL after redirects
+- `body`: `ReadableStream<Uint8Array>` or `null`
+- `bodyUsed`: `true` if body has been read
+
+### Methods
+
+- `json()`: parse body as JSON
+- `text()`: get body as string
+- `arrayBuffer()`: get body as ArrayBuffer
+- `clone()`: clone the response

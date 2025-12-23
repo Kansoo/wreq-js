@@ -1,0 +1,94 @@
+---
+title: WebSockets
+description: "Connect to WebSocket servers with browser fingerprint consistency."
+---
+
+## Basic WebSocket connection
+
+Connect to a WebSocket server with browser fingerprinting:
+
+```typescript
+import { websocket } from 'wreq-js';
+
+const ws = await websocket({
+  url: 'wss://echo.websocket.org',
+  browser: 'chrome_142',
+  onMessage: (data) => console.log('Received:', data),
+});
+
+await ws.send('Hello!');
+await ws.close();
+```
+
+## WebSocket options
+
+```typescript
+const ws = await websocket({
+  url: 'wss://example.com/socket',
+  browser: 'chrome_142',
+  os: 'windows',
+  proxy: 'http://proxy.example.com:8080',
+  headers: {
+    'Authorization': 'Bearer token',
+  },
+  onMessage: (data) => {
+    console.log('Message:', data);
+  },
+  onClose: () => {
+    console.log('Connection closed');
+  },
+  onError: (error) => {
+    console.error('Error:', error);
+  },
+});
+```
+
+## Sending messages
+
+```typescript
+// Send text
+await ws.send('Hello, server!');
+
+// Send JSON
+await ws.send(JSON.stringify({ type: 'ping' }));
+```
+
+## Handling messages
+
+Process incoming messages in the `onMessage` callback:
+
+```typescript
+const ws = await websocket({
+  url: 'wss://example.com/socket',
+  browser: 'chrome_142',
+  onMessage: (data) => {
+    // data can be string or binary
+    if (typeof data === 'string') {
+      const message = JSON.parse(data);
+      console.log('Received JSON:', message);
+    } else {
+      console.log('Received binary:', data.byteLength, 'bytes');
+    }
+  },
+});
+```
+
+## Closing the connection
+
+Always close the WebSocket when done:
+
+```typescript
+await ws.close();
+```
+
+## Why use wreq-js WebSockets?
+
+Standard WebSocket libraries don't replicate browser TLS fingerprints. When connecting to services that check for automation:
+
+- **Browser fingerprints**: same JA3/JA4 profile family as HTTP requests
+- **Consistent headers**: browser-matching Upgrade headers
+- **Proxy support**: route WebSocket connections through proxies
+
+<Tip>
+Use the same `browser` profile for both HTTP and WebSocket connections to maintain fingerprint consistency throughout your session.
+</Tip>

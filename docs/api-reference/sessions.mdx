@@ -1,0 +1,149 @@
+---
+title: Sessions
+description: "Create and manage persistent sessions with cookie storage."
+---
+
+## createSession()
+
+Create a persistent session that maintains cookies and connection state across requests.
+
+Within a session, `browser`, `os`, and `proxy` are fixed at creation time.
+
+### Signature
+
+```typescript
+function createSession(options?: CreateSessionOptions): Promise<Session>
+```
+
+### Options
+
+<ParamField path="browser" type="BrowserProfile">
+  Default browser fingerprint profile for all session requests.
+</ParamField>
+
+<ParamField path="os" type="EmulationOS">
+  Default operating system to emulate.
+</ParamField>
+
+<ParamField path="proxy" type="string">
+  Default proxy URL for all session requests.
+</ParamField>
+
+<ParamField path="timeout" type="number">
+  Default request timeout in milliseconds.
+</ParamField>
+
+<ParamField path="insecure" type="boolean" default="false">
+  Accept invalid certificates for all session requests. **Use only in development.**
+</ParamField>
+
+### Session object
+
+The returned `Session` object has:
+
+#### session.fetch(url, init?)
+
+Make a request using the session's cookie jar and connection pool.
+
+```typescript
+const response = await session.fetch('https://example.com/api', {
+  method: 'POST',
+  body: JSON.stringify({ data: 'value' }),
+});
+```
+
+Per-request options override session defaults.
+
+#### session.close()
+
+Close the session and release resources. Always call this when done.
+
+```typescript
+await session.close();
+```
+
+### Example
+
+```typescript
+import { createSession } from 'wreq-js';
+
+const session = await createSession({
+  browser: 'chrome_142',
+  os: 'windows',
+});
+
+// Login - cookies are stored
+await session.fetch('https://example.com/login', {
+  method: 'POST',
+  body: new URLSearchParams({ user: 'name', pass: 'secret' }),
+});
+
+// Subsequent requests include cookies
+const profile = await session.fetch('https://example.com/profile');
+console.log(await profile.json());
+
+// Always close when done
+await session.close();
+```
+
+---
+
+## withSession()
+
+Auto-disposing session helper that closes the session when the callback completes.
+
+### Signature
+
+```typescript
+function withSession<T>(
+  callback: (session: Session) => Promise<T>,
+  options?: CreateSessionOptions
+): Promise<T>
+```
+
+### Example
+
+```typescript
+import { withSession } from 'wreq-js';
+
+const result = await withSession(async (session) => {
+  await session.fetch('https://example.com/login', {
+    method: 'POST',
+    body: 'credentials',
+  });
+  
+  const response = await session.fetch('https://example.com/data');
+  return response.json();
+}, {
+  browser: 'chrome_142',
+});
+
+// Session is automatically closed
+console.log(result);
+```
+
+### With options
+
+```typescript
+const data = await withSession(
+  async (session) => {
+    const response = await session.fetch('https://example.com/api');
+    return response.json();
+  },
+  {
+    browser: 'firefox_139',
+    proxy: 'http://proxy.example.com:8080',
+  }
+);
+```
+
+---
+
+## Session vs. Ephemeral
+
+| Feature | Ephemeral (default `fetch`) | Session |
+| ------- | --------------------------- | ------- |
+| Cookies | Not persisted | Persisted across requests |
+| TLS cache | Fresh each request | Reused within session |
+| Connection pool | New connections | Multiplexed connections |
+| Use case | Isolated requests | Multi-step flows |

@@ -4,23 +4,23 @@
 [![CI](https://github.com/sqdshguy/wreq-js/actions/workflows/test.yml/badge.svg)](https://github.com/sqdshguy/wreq-js/actions/workflows/test.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sqdshguy/wreq-js)
 
-High-performance HTTP client for Node.JS with real-browser TLS and HTTP/2 fingerprints, powered by Rust.
+High-performance HTTP client for Node.js with real-browser TLS and HTTP/2 fingerprints, powered by Rust.
 
-- ⚡️ A modern, actively maintained alternative to outdated browser-impersonating clients and legacy wrappers.  
-- When it comes to web scraping and automation, keeping up with the latest developments is NOT optional. Detection systems like Akamai and Cloudflare change every day using machine learning, old fingerprints are quickly detected.
-- `wreq-js` builds upon the Rust-based [`wreq`](https://github.com/0x676e67/wreq) engine to deliver drop-in Node.js bindings that feel like `fetch()` but behave like a real browser.
+- Native performance (no browser/process spawning)
+- Real browser TLS fingerprints (JA3/JA4)
+- HTTP/2 impersonation (SETTINGS/PRIORITY/header ordering)
+- Multiple browser profiles (Chrome/Firefox/Safari/Edge/Opera/OkHttp)
+- WebSocket support with fingerprint consistency
+- Prebuilt native binaries for macOS/Linux/Windows
+- TypeScript-ready with generated definitions
 
-> This is my maintained fork of [will-work-for-meal/node-wreq](https://github.com/will-work-for-meal/node-wreq), originally named `node-wreq`, with ongoing updates and dependency refreshes for compatibility and speed.
+## Documentation
 
-## Features
+All guides, concepts, and API reference live at:
 
-- **Native performance** — no process spawning or browser overhead  
-- **Real browser TLS fingerprints** (JA3/JA4)  
-- **HTTP/2 impersonation** — replicates SETTINGS, PRIORITY, and header ordering  
-- **Multiple browser profiles** — Chrome, Firefox, Safari, Edge, Opera, OkHttp  
-- **WebSocket support** with browser fingerprint consistency  
-- **Prebuilt native binaries** for macOS, Linux, and Windows  
-- **TypeScript-ready** with generated definitions
+- https://wreq.sqdsh.win
+
+(If you're looking for examples, sessions/cookies, proxy usage, streaming, WebSockets, or the full API surface - it's all there.)
 
 ## Installation
 
@@ -37,381 +37,57 @@ Prebuilt binaries are provided for:
 - Linux (x64 & ARM64, glibc & musl)
 - Windows (x64)
 
-> ⚠️ If a prebuilt binary for your platform or commit is unavailable, the package will build from source.  
-> Make sure a Rust toolchain and required build dependencies are installed.
+If a prebuilt binary for your platform/commit is unavailable, the package will build from source (requires a Rust toolchain).
 
-## Why wreq-js
+## Quick start
 
-- **Stealth** - fingerprints that track real browser TLS and HTTP/2 stacks  
-- **Speed** - native performance without launching a browser process  
-- **Profiles** - maintained fingerprints synced from upstream `wreq-util`  
-
-This is the sweet spot when your target isn't too picky to require browser automation, or when you need to save resources and keep throughput fast.
-As far as we are concerned, there are no optimal JS/TS alternatives that combine updated fingerprints, strong performance, and an LLM-friendly policy.
-It's especially nice with Bun, where the usual Node.js native binding overhead is basically non-existent.
-
-When not to use: if you need DOM/JavaScript execution, CAPTCHA solving, or full browser automation, use Playwright/Puppeteer instead.
-
-HTTP clients like `axios`, `fetch`, `got`, `curl` do not behave like browsers on the network layer.  
-They differ in:
-
-- **TLS handshake** - unique cipher suite order and extension sets  
-- **HTTP/2 frames** - different SETTINGS and PRIORITY sequences  
-- **Header ordering** - deterministic but non-browser-compliant  
-
-These subtle differences are enough for modern detection systems to identify automation.  
-`wreq-js` reproduces browser networking behavior using the `wreq` Rust engine underneath.  
-Your job is to write scripts, ours is to make them undetectable, yet effortless.
-
-## Architecture Overview
-
-`wreq-js` provides Node.js bindings over [`wreq`](https://github.com/0x676e67/wreq), a Rust HTTP client built on **BoringSSL** to emulate browser TLS and HTTP/2 stacks.  
-Browser profiles are defined in the upstream [`wreq-util`](https://github.com/0x676e67/wreq-util) project and automatically synchronized here for faster updates.
-
-To query supported profiles:
-
-```typescript
-import { getProfiles } from 'wreq-js';
-console.log(getProfiles());
-// ['chrome_142', 'firefox_139', 'edge_120', 'safari_18', ...]
-
-import { getOperatingSystems } from 'wreq-js';
-console.log(getOperatingSystems());
-// ['windows', 'macos', 'linux', 'android', 'ios']
-```
-
-## Quick Start
-
-```typescript
+```ts
 import { fetch } from 'wreq-js';
 
-const response = await fetch('https://example.com/api', {
+const res = await fetch('https://example.com/api', {
   browser: 'chrome_142',
-  os: 'windows', // emulate Windows headers/TLS instead of the default macOS
+  os: 'windows',
 });
 
-console.log(await response.json());
+console.log(await res.json());
 ```
 
-That’s it, you now have full browser impersonation, drop-in compatibility with the `fetch()` API.
+## Use sessions (recommended)
 
-## LLM Quickstart
+For **most real-world workloads**, start with a session and reuse it across requests.
+This keeps TLS/cookies warm and avoids paying setup costs on every call.
 
-Copy/paste recipes:
-
-### Login flow with a session
-
-```typescript
+```ts
 import { createSession } from 'wreq-js';
 
-const session = await createSession({ browser: 'chrome_142' });
-await session.fetch('https://example.com/login', {
-  method: 'POST',
-  body: new URLSearchParams({ user: 'name', pass: 'secret' }),
-});
-
-const account = await session.fetch('https://example.com/account');
-console.log(await account.text());
-await session.close();
-```
-
-### Proxy rotation per request
-
-```typescript
-import { fetch } from 'wreq-js';
-
-const proxies = [
-  'http://user:pass@proxy-1.example:8080',
-  'http://user:pass@proxy-2.example:8080',
-];
-
-for (const proxy of proxies) {
-  const res = await fetch('https://example.com', { proxy, browser: 'chrome_142' });
-  console.log(proxy, res.status);
-}
-```
-
-### Abort + timeout
-
-```typescript
-import { fetch } from 'wreq-js';
-
-const controller = new AbortController();
-const timer = setTimeout(() => controller.abort(), 2000);
+const session = await createSession({ browser: 'chrome_142', os: 'windows' });
 
 try {
-  const res = await fetch('https://example.com/slow', {
-    browser: 'chrome_142',
-    timeout: 5000,
-    signal: controller.signal,
-  });
-  console.log(await res.text());
+  const a = await session.fetch('https://example.com/a');
+  const b = await session.fetch('https://example.com/b');
+  console.log(a.status, b.status);
 } finally {
-  clearTimeout(timer);
+  await session.close();
 }
 ```
 
-### Stream a response
+More session patterns: https://wreq.sqdsh.win
 
-```typescript
-import { fetch } from 'wreq-js';
+## When to use
 
-const res = await fetch('https://example.com/stream', { browser: 'chrome_142' });
-const reader = res.body?.getReader();
-if (!reader) {
-  throw new Error('No response body');
-}
-
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) {
-    break;
-  }
-  console.log('chunk', value.byteLength);
-}
-```
-
-Non-goals / incompatibilities:
-- No DOM or JavaScript execution (not a browser runtime)
-- No CAPTCHA solving or page automation primitives
-- Not a full Fetch API polyfill (no Cache, Service Worker, etc.)
-
-## Advanced Usage
-
-### Custom Headers
-
-```typescript
-import { fetch, Headers } from 'wreq-js';
-
-const response = await fetch('https://api.example.com/data', {
-  browser: 'firefox_139',
-  headers: new Headers({
-    Authorization: 'Bearer token123',
-    'Custom-Header': 'value',
-  }),
-});
-```
-
-By default, browser emulation headers (like `Accept`, `Accept-Language`, `User-Agent`, etc.) are automatically added and may be appended to your custom headers. To prevent this and use **only** your custom headers:
-
-```typescript
-const response = await fetch('https://api.example.com/data', {
-  browser: 'chrome_142',
-  headers: {
-    'Accept': '*/*',
-    'User-Agent': 'CustomBot/1.0',
-  },
-  disableDefaultHeaders: true, // Disable emulation headers
-});
-```
-
-### POST Request
-
-```typescript
-const res = await fetch('https://api.example.com/submit', {
-  method: 'POST',
-  browser: 'chrome_142',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ foo: 'bar' }),
-});
-```
-
-### Disabling Certificate Verification
-
-For development or testing against servers with self-signed or expired certificates, you can disable certificate verification:
-
-```typescript
-const response = await fetch('https://self-signed.example.com', {
-  browser: 'chrome_142',
-  insecure: true, // Accept invalid/self-signed certificates
-});
-```
-
-**⚠️ Security Warning:** Only use `insecure: true` in development or controlled testing environments. When enabled, **any** certificate for **any** site will be trusted, including expired and self-signed certificates. This introduces significant security vulnerabilities and should never be used in production.
-
-The `insecure` option works with both direct `fetch()` calls and sessions:
-
-```typescript
-// Per-request
-await fetch('https://localhost:8443', { insecure: true });
-
-// For all requests in a session
-const session = await createSession({
-  browser: 'chrome_142',
-  insecure: true, // All requests in this session accept invalid certificates
-});
-```
-
-### Streaming Responses
-
-The `Response` object supports streaming via the standard `body` property, which returns a `ReadableStream<Uint8Array>`. This allows you to process large responses incrementally without loading the entire body into memory.
-
-```typescript
-const response = await fetch('https://example.com/large-file', {
-  browser: 'chrome_142',
-});
-
-// Access the body stream
-const stream = response.body;
-if (stream) {
-  const reader = stream.getReader();
-
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      break;
-    }
-
-    // Process chunk (value is Uint8Array)
-    console.log(`Received ${value.byteLength} bytes`);
-  }
-}
-```
-
-**Key behaviors:**
-- The `body` property is lazily initialized - it returns `null` for empty responses or a `ReadableStream` for non-empty responses
-- Accessing `response.body` does **not** mark it as consumed - only reading from the stream does
-- The `bodyUsed` flag becomes `true` only when you start reading from the stream
-- You can call `response.clone()` to create a duplicate response before the body is consumed
-- Once consumed via `json()`, `text()`, `arrayBuffer()`, or stream reading, the body cannot be read again
-
-## Session & Cookie Isolation
-
-Each `fetch()` call runs in **ephemeral mode** so that TLS caches, cookies, and session data never leak across requests.
-To persist state, use `createSession()` or `withSession()`:
-
-| Scenario | Recommended | Why |
-| --- | --- | --- |
-| One-off request, no cookie carryover | `ephemeral` (default) | Fresh TLS/cookie jar per call |
-| Multi-step login or reuse cookies | `session` | Shared cookie jar and TLS cache |
-| Parallel jobs that must stay isolated | `ephemeral` or per-job session | Avoid cross-talk between tasks |
-
-```typescript
-import { createSession, withSession } from 'wreq-js';
-
-const session = await createSession({ browser: 'chrome_142' });
-await session.fetch('https://example.com/login', { method: 'POST', body: '...' });
-await session.fetch('https://example.com/dashboard');
-await session.close();
-
-// Auto-disposing helper
-await withSession(async (s) => {
-  await s.fetch('https://example.com/a');
-  await s.fetch('https://example.com/b');
-});
-```
-
-For finer control:
-
-```typescript
-await fetch('https://example.com', {
-  sessionId: 'user-42',
-  cookieMode: 'session',
-});
-```
-
-### Concurrency limiter (p-limit)
-
-```typescript
-import pLimit from 'p-limit';
-import { fetch } from 'wreq-js';
-
-const limit = pLimit(5);
-const urls = ['https://example.com/a', 'https://example.com/b'];
-
-const responses = await Promise.all(
-  urls.map((url) => limit(() => fetch(url, { browser: 'chrome_142' })))
-);
-
-console.log(responses.map((res) => res.status));
-```
-
-## Performance Tips
-
-- Reuse sessions for multi-request workflows to keep TLS and cookies warm
-- Prebuild `HeaderTuple[]` for hot paths to avoid repeated allocations
-- Default emulation headers are merged in; set `disableDefaultHeaders: true` when you need exact headers
-
-```typescript
-import type { HeaderTuple } from 'wreq-js';
-import { fetch } from 'wreq-js';
-
-const baseHeaders: HeaderTuple[] = [
-  ['accept', '*/*'],
-  ['user-agent', 'CustomBot/1.0'],
-];
-
-await fetch('https://example.com', {
-  browser: 'chrome_142',
-  headers: baseHeaders,
-  disableDefaultHeaders: true,
-});
-```
-
-## WebSocket Example
-
-```typescript
-import { websocket } from 'wreq-js';
-
-const ws = await websocket({
-  url: 'wss://echo.websocket.org',
-  browser: 'chrome_142',
-  onMessage: (data) => console.log('Received:', data),
-});
-
-await ws.send('Hello!');
-await ws.close();
-```
-
-## API Reference
-
-The API is aiming to be `fetch`-compatible, with a few `wreq`-specific extensions.  
-See inline TypeScript definitions for complete typings.
-
-```typescript
-interface RequestInit {
-  method?: string;
-  headers?: HeadersInit;
-  body?: BodyInit | null;
-  signal?: AbortSignal | null;
-  redirect?: 'follow';
-  browser?: BrowserProfile;
-  proxy?: string;
-  timeout?: number;
-  cookieMode?: 'session' | 'ephemeral';
-  session?: Session;
-  sessionId?: string;
-  disableDefaultHeaders?: boolean; // Prevent emulation headers from being appended
-  insecure?: boolean; // Disable certificate verification (use with caution)
-}
-
-interface CreateSessionOptions {
-  browser?: BrowserProfile;
-  os?: EmulationOS;
-  proxy?: string;
-  sessionId?: string;
-  timeout?: number;
-  insecure?: boolean; // Disable certificate verification for all session requests
-}
-```
-
-## Documentation
-
-- **[Architecture Guide](docs/ARCHITECTURE.md)** - How fingerprinting and impersonation work  
-- **[Build Instructions](docs/BUILD.md)** - Build from source  
-- **[Benchmarking](docs/BENCHMARK.md)** - Local, statistically meaningful benchmarks  
+Use `wreq-js` when you need `fetch()`-style ergonomics but want the network layer to look like a real browser.
+If you need DOM/JS execution, CAPTCHA solving, or full browser automation, use Playwright/Puppeteer instead.
 
 ## Contributing
 
-Please read the [Contributing Guide](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Origins
-This project began as a fork of [will-work-for-meal/node-wreq](https://github.com/will-work-for-meal/node-wreq) but has since evolved into an independent implementation with extensive rewrites, new APIs, and active maintenance. It is not affiliated with the original project.
+
+This is a maintained fork of [will-work-for-meal/node-wreq](https://github.com/will-work-for-meal/node-wreq) (originally named `node-wreq`), with ongoing updates, compatibility fixes, and performance work.
 
 ## Acknowledgments
 
-- [wreq](https://github.com/0x676e67/wreq) - Rust HTTP client with browser impersonation  
-- [wreq-util](https://github.com/0x676e67/wreq-util) - Source of up-to-date browser profiles  
-- [Neon](https://neon-bindings.com/) - Rust ↔ Node.js bindings  
-- [will-work-for-meal/node-wreq](https://github.com/will-work-for-meal/node-wreq) - Original Node.js wrapper foundation
+- [wreq](https://github.com/0x676e67/wreq) - Rust HTTP client with browser impersonation
+- [wreq-util](https://github.com/0x676e67/wreq-util) - source of up-to-date browser profiles
+- [Neon](https://neon-bindings.com/) - Rust ↔ Node.js bindings

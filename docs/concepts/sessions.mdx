@@ -1,0 +1,124 @@
+---
+title: Sessions
+description: "Learn about session management, cookie persistence, and request isolation."
+---
+
+## Ephemeral vs. Session mode
+
+By default, each `fetch()` call runs in **ephemeral mode**. Cookies and connection state are isolated per call. This is a good fit for one-off requests.
+
+For multi-step flows (like login sequences), use **sessions** to persist state.
+
+| Scenario | Recommended | Why |
+| -------- | ----------- | --- |
+| One-off request, no cookie carryover | Ephemeral (default) | Fresh TLS/cookie jar per call |
+| Multi-step login or reuse cookies | Session | Shared cookie jar and TLS cache |
+| Parallel jobs that must stay isolated | Ephemeral or per-job session | Avoid cross-talk between tasks |
+
+## Creating a session
+
+```typescript
+import { createSession } from 'wreq-js';
+
+const session = await createSession({ browser: 'chrome_142' });
+
+// All requests share the same cookie jar
+await session.fetch('https://example.com/login', {
+  method: 'POST',
+  body: new URLSearchParams({ user: 'name', pass: 'secret' }),
+});
+
+// Cookies from login are automatically included
+const dashboard = await session.fetch('https://example.com/dashboard');
+console.log(await dashboard.text());
+
+// Always close when done
+await session.close();
+```
+
+## Auto-disposing sessions
+
+Use `withSession()` to automatically close the session when done:
+
+```typescript
+import { withSession } from 'wreq-js';
+
+await withSession(async (session) => {
+  await session.fetch('https://example.com/login', {
+    method: 'POST',
+    body: 'credentials',
+  });
+  
+  const data = await session.fetch('https://example.com/data');
+  console.log(await data.json());
+}); // Session is automatically closed here
+```
+
+## Session options
+
+Sessions accept the same options as `fetch()` for default behavior:
+
+```typescript
+const session = await createSession({
+  browser: 'chrome_142',
+  os: 'windows',
+  proxy: 'http://proxy.example.com:8080',
+  insecure: false,
+});
+```
+
+## Per-request overrides
+
+Within a session, `browser`, `os`, and `proxy` are fixed at creation time.
+
+You can still override per-request values like `timeout`, `headers`, `redirect`, and `body`:
+
+```typescript
+const session = await createSession({
+  browser: 'chrome_142',
+  timeout: 30_000,
+});
+
+// Override timeout for a single request
+await session.fetch('https://example.com', {
+  timeout: 5_000,
+  headers: {
+    'accept': 'text/html,application/xhtml+xml',
+  },
+});
+```
+
+## Session isolation
+
+Each session maintains its own:
+
+- **Cookie jar**: cookies are not shared between sessions
+- **TLS cache**: connection state is isolated
+- **Connection pool**: HTTP/2 multiplexing within the session
+
+```typescript
+// These sessions are completely isolated
+const session1 = await createSession({ browser: 'chrome_142' });
+const session2 = await createSession({ browser: 'firefox_139' });
+
+// Cookies set in session1 do not affect session2
+await session1.fetch('https://example.com/set-cookie');
+await session2.fetch('https://example.com/check-cookie'); // No cookie present
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Always close sessions" icon="door-closed">
+    Call `session.close()` or use `withSession()` to prevent resource leaks.
+  </Card>
+  <Card title="One session per flow" icon="route">
+    Use a dedicated session for each logical user flow or task.
+  </Card>
+  <Card title="Parallel isolation" icon="split">
+    For parallel scraping, create separate sessions to avoid cookie cross-contamination.
+  </Card>
+  <Card title="Reuse for performance" icon="gauge">
+    Sessions reuse connections, making subsequent requests faster.
+  </Card>
+</CardGroup>

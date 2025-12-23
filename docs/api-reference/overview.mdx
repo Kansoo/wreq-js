@@ -1,0 +1,90 @@
+---
+title: API Overview
+description: "Complete API reference for wreq-js."
+---
+
+## Exports
+
+wreq-js exports the following functions and classes:
+
+```typescript
+import {
+  // Core functions
+  fetch,
+  createSession,
+  withSession,
+  websocket,
+  
+  // Utilities
+  getProfiles,
+  getOperatingSystems,
+  
+  // Classes
+  Headers,
+  Request,
+  Response,
+} from 'wreq-js';
+```
+
+## Quick reference
+
+| Function | Description |
+| -------- | ----------- |
+| [`fetch()`](/api-reference/fetch) | Make HTTP requests with browser fingerprinting |
+| [`createSession()`](/api-reference/sessions) | Create a persistent session with cookie storage |
+| [`withSession()`](/api-reference/sessions#withsession) | Auto-disposing session helper |
+| [`websocket()`](/api-reference/websocket) | Connect to WebSocket servers |
+| [`getProfiles()`](/api-reference/utilities#getprofiles) | List available browser profiles |
+| [`getOperatingSystems()`](/api-reference/utilities#getoperatingsystems) | List available operating systems |
+
+## TypeScript support
+
+wreq-js includes full TypeScript definitions. All types are exported:
+
+```typescript
+import type {
+  BrowserProfile,
+  EmulationOS,
+  RequestInit,
+  CreateSessionOptions,
+  Session,
+} from 'wreq-js';
+```
+
+## Fetch API compatibility
+
+wreq-js aims to be compatible with the standard Fetch API while adding browser impersonation features:
+
+| Standard Fetch | wreq-js |
+| -------------- | ------- |
+| `fetch(url, init)` | ✅ Supported |
+| `Request` class | ✅ Supported |
+| `Response` class | ✅ Supported |
+| `Headers` class | ✅ Supported |
+| `AbortController` | ✅ Supported |
+| `ReadableStream` body | ✅ Supported |
+| Service Workers | ❌ Not applicable |
+| Cache API | ❌ Not applicable |
+
+## wreq-js extensions
+
+Additional options beyond the standard Fetch API:
+
+```typescript
+interface RequestInit {
+  // Standard options
+  method?: string;
+  headers?: HeadersInit;
+  body?: BodyInit | null;
+  signal?: AbortSignal | null;
+  redirect?: 'follow';
+  
+  // wreq-js extensions
+  browser?: BrowserProfile;      // Browser fingerprint profile
+  os?: EmulationOS;              // Operating system emulation
+  proxy?: string;                // Proxy URL
+  timeout?: number;              // Request timeout in ms
+  disableDefaultHeaders?: boolean; // Disable auto-added headers
+  insecure?: boolean;            // Accept invalid certificates
+}
+```

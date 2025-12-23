@@ -1,0 +1,149 @@
+---
+title: websocket()
+description: "Connect to WebSocket servers with browser fingerprinting."
+---
+
+## Signature
+
+```typescript
+function websocket(options: WebSocketOptions): Promise<WebSocket>
+```
+
+## Options
+
+<ParamField path="url" type="string" required>
+  WebSocket URL. Must start with `ws://` or `wss://`.
+</ParamField>
+
+<ParamField path="browser" type="BrowserProfile">
+  Browser fingerprint profile to use for the connection.
+</ParamField>
+
+<ParamField path="os" type="EmulationOS">
+  Operating system to emulate.
+</ParamField>
+
+<ParamField path="proxy" type="string">
+  Proxy URL for the WebSocket connection.
+</ParamField>
+
+<ParamField path="headers" type="Record<string, string>">
+  Additional headers for the WebSocket handshake.
+</ParamField>
+
+<ParamField path="onMessage" type="(data: string | Uint8Array) => void">
+  Callback for incoming messages.
+</ParamField>
+
+<ParamField path="onClose" type="() => void">
+  Callback when the connection closes.
+</ParamField>
+
+<ParamField path="onError" type="(error: Error) => void">
+  Callback for connection errors.
+</ParamField>
+
+## WebSocket object
+
+The returned `WebSocket` object has:
+
+### ws.send(data)
+
+Send a message to the server.
+
+```typescript
+await ws.send('Hello, server!');
+await ws.send(JSON.stringify({ type: 'ping' }));
+```
+
+### ws.close()
+
+Close the WebSocket connection.
+
+```typescript
+await ws.close();
+```
+
+## Examples
+
+### Basic connection
+
+```typescript
+import { websocket } from 'wreq-js';
+
+const ws = await websocket({
+  url: 'wss://echo.websocket.org',
+  browser: 'chrome_142',
+  onMessage: (data) => {
+    console.log('Received:', data);
+  },
+});
+
+await ws.send('Hello!');
+
+// Later...
+await ws.close();
+```
+
+### With all callbacks
+
+```typescript
+const ws = await websocket({
+  url: 'wss://example.com/socket',
+  browser: 'chrome_142',
+  headers: {
+    'Authorization': 'Bearer token123',
+  },
+  onMessage: (data) => {
+    if (typeof data === 'string') {
+      console.log('Text message:', data);
+    } else {
+      console.log('Binary message:', data.byteLength, 'bytes');
+    }
+  },
+  onClose: () => {
+    console.log('Connection closed');
+  },
+  onError: (error) => {
+    console.error('WebSocket error:', error.message);
+  },
+});
+```
+
+### Through a proxy
+
+```typescript
+const ws = await websocket({
+  url: 'wss://example.com/socket',
+  browser: 'chrome_142',
+  proxy: 'http://user:pass@proxy.example.com:8080',
+  onMessage: (data) => console.log(data),
+});
+```
+
+### JSON messaging
+
+```typescript
+const ws = await websocket({
+  url: 'wss://api.example.com/ws',
+  browser: 'chrome_142',
+  onMessage: (data) => {
+    if (typeof data === 'string') {
+      const message = JSON.parse(data);
+      
+      switch (message.type) {
+        case 'pong':
+          console.log('Server responded to ping');
+          break;
+        case 'data':
+          console.log('Received data:', message.payload);
+          break;
+      }
+    }
+  },
+});
+
+// Send JSON messages
+await ws.send(JSON.stringify({ type: 'ping' }));
+await ws.send(JSON.stringify({ type: 'subscribe', channel: 'updates' }));
+```
