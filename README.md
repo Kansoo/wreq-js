@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/wreq-js.svg)](https://www.npmjs.com/package/wreq-js)
 [![CI](https://github.com/sqdshguy/wreq-js/actions/workflows/test.yml/badge.svg)](https://github.com/sqdshguy/wreq-js/actions/workflows/test.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sqdshguy/wreq-js)
 
 High-performance HTTP client for Node.JS with real-browser TLS and HTTP/2 fingerprints, powered by Rust.
 
@@ -44,6 +45,9 @@ Prebuilt binaries are provided for:
 - **Stealth** - fingerprints that track real browser TLS and HTTP/2 stacks  
 - **Speed** - native performance without launching a browser process  
 - **Profiles** - maintained fingerprints synced from upstream `wreq-util`  
+
+This is the sweet spot when your target isn't too picky to require browser automation, or when you need to save resources and keep throughput fast.
+As far as we are concerned, there are no optimal JS/TS alternatives that combine updated fingerprints, strong performance, and an LLM-friendly policy.
 
 When not to use: if you need DOM/JavaScript execution, CAPTCHA solving, or full browser automation, use Playwright/Puppeteer instead.
 
