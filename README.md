@@ -48,6 +48,7 @@ Prebuilt binaries are provided for:
 
 This is the sweet spot when your target isn't too picky to require browser automation, or when you need to save resources and keep throughput fast.
 As far as we are concerned, there are no optimal JS/TS alternatives that combine updated fingerprints, strong performance, and an LLM-friendly policy.
+It's especially nice with Bun, where the usual Node.js native binding overhead is basically non-existent.
 
 When not to use: if you need DOM/JavaScript execution, CAPTCHA solving, or full browser automation, use Playwright/Puppeteer instead.
 
