@@ -10,5 +10,6 @@ export default defineConfig({
   outExtension({ format }) {
     return format === "cjs" ? { js: ".cjs" } : { js: ".js" };
   },
-  bundle: false,
+  bundle: true,
+  noExternal: ["./types.js", "./generated-types.js"],
 });
