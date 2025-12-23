@@ -157,8 +157,20 @@ jobs:
       #   run: npm run build:ts
 
       - name: Run tests
-        if: "!matrix.target"
+        if: "!matrix.target && !(matrix.os == 'ubuntu-latest' && matrix.node-version == 24 && matrix.arch == 'x64')"
         run: npm test
+
+      - name: Run coverage tests
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 24 && matrix.arch == 'x64' && !matrix.target
+        run: npm run test:coverage:ci
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 24 && matrix.arch == 'x64' && !matrix.target
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-lcov
+          path: coverage
+          if-no-files-found: error
 
   lint:
     name: Lint
