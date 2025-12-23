@@ -1,7 +1,7 @@
 {
   "all": true,
-  "include": ["dist/**/*.js"],
-  "exclude": ["dist/test/**", "**/*.spec.js", "**/*.test.js", "**/generated-types.js"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/test/**", "**/*.spec.ts", "**/*.test.ts", "**/generated-types.ts"],
   "reporter": ["text", "html", "lcov"],
   "check-coverage": true,
   "lines": 80,
