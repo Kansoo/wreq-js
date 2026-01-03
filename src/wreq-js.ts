@@ -517,9 +517,16 @@ function releaseNativeBody(handle: NativeBodyHandle): void {
   bodyHandleFinalizer?.unregister(handle);
 }
 
-function createNativeBodyStream(handleId: number): ReadableStream<Uint8Array> {
-  const handle: NativeBodyHandle = { id: handleId, released: false };
+function markNativeBodyReleased(handle: NativeBodyHandle): void {
+  if (handle.released) {
+    return;
+  }
 
+  handle.released = true;
+  bodyHandleFinalizer?.unregister(handle);
+}
+
+function createNativeBodyStream(handle: NativeBodyHandle): ReadableStream<Uint8Array> {
   const stream = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
@@ -597,6 +604,7 @@ export class Response {
   private bodyStream: ReadableStream<Uint8Array> | null | undefined;
   // Track if we can use the fast path (native handle not yet wrapped in a stream)
   private nativeHandleAvailable: boolean;
+  private nativeHandle: NativeBodyHandle | null;
 
   constructor(payload: NativeResponse, requestUrl: string, bodySource?: ReadableStream<Uint8Array> | null) {
     this.payload = payload;
@@ -610,6 +618,7 @@ export class Response {
     this.cookiesRecord = null;
     this.contentLength = this.payload.contentLength ?? null;
     this.inlineBody = this.payload.bodyBytes ?? null;
+    this.nativeHandle = null;
 
     if (typeof bodySource !== "undefined") {
       // External stream provided (e.g., from clone) - no fast path
@@ -623,6 +632,8 @@ export class Response {
       // Defer stream creation - we might use fast path instead
       this.bodySource = null;
       this.nativeHandleAvailable = true;
+      this.nativeHandle = { id: this.payload.bodyHandle, released: false };
+      bodyHandleFinalizer?.register(this, this.nativeHandle, this.nativeHandle);
     } else {
       this.bodySource = null;
       this.nativeHandleAvailable = false;
@@ -694,7 +705,12 @@ export class Response {
 
     // Lazily create the stream if needed (disables fast path)
     if (this.bodySource === null && this.nativeHandleAvailable && this.payload.bodyHandle !== null) {
-      this.bodySource = createNativeBodyStream(this.payload.bodyHandle);
+      if (this.nativeHandle) {
+        bodyHandleFinalizer?.unregister(this.nativeHandle);
+      }
+      const handle = this.nativeHandle ?? { id: this.payload.bodyHandle, released: false };
+      this.nativeHandle = handle;
+      this.bodySource = createNativeBodyStream(handle);
       this.nativeHandleAvailable = false;
     }
 
@@ -741,7 +757,12 @@ export class Response {
 
     // If we still have the native handle (fast path), we need to create the stream first
     if (this.nativeHandleAvailable && this.payload.bodyHandle !== null) {
-      this.bodySource = createNativeBodyStream(this.payload.bodyHandle);
+      if (this.nativeHandle) {
+        bodyHandleFinalizer?.unregister(this.nativeHandle);
+      }
+      const handle = this.nativeHandle ?? { id: this.payload.bodyHandle, released: false };
+      this.nativeHandle = handle;
+      this.bodySource = createNativeBodyStream(handle);
       this.nativeHandleAvailable = false;
     }
 
@@ -785,6 +806,10 @@ export class Response {
           return Buffer.alloc(0);
         }
         throw error;
+      } finally {
+        if (this.nativeHandle) {
+          markNativeBodyReleased(this.nativeHandle);
+        }
       }
     }
 
